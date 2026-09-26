@@ -1,6 +1,6 @@
 /* XLSX/CSV reader. Only analytical columns are retained; guest identity fields are never read into result rows. */
 const REQUIRED = ['Id','Fecha reserva','Estado','Edificio','Llegada','Salida','Noches','Precio total','Canal'];
-const OPTIONAL = ['País','Tarifas','Num. personas','Precio alquiler','Precio tasa turística','Precio de descuento','Alojamiento'];
+const OPTIONAL = ['País','Tarifas','Num. personas','Precio alquiler','Precio tasa turística','Precio de descuento','Alojamiento','Categoría'];
 const xml = text => {
   const doc = new DOMParser().parseFromString(text, 'application/xml');
   if (doc.querySelector('parsererror')) throw Error('El Excel contiene XML no válido');
@@ -79,7 +79,7 @@ async function readXlsx(file) {
     const arrival=date(get('Llegada')), departure=date(get('Salida')), booked=date(get('Fecha reserva'));
     const nights=value(get('Noches'));
     bookings.set(id,{
-      id, month:arrival.slice(0,7), arrival, departure, apartment:String(get('Alojamiento')||'Sin apartamento'), building:String(get('Edificio')||'Sin edificio'),
+      id, month:arrival.slice(0,7), arrival, departure, apartment:String(get('Alojamiento')||'Sin apartamento'), roomType:String(get('Categoría')||'Sin categoría'), building:String(get('Edificio')||'Sin edificio'),
       channel:String(get('Canal')||'Sin canal'), country:String(get('País')||'Sin país'),
       rate:String(get('Tarifas')||'Sin tarifa'), status:String(get('Estado')),
       nights, guests:get('Num. personas') === '' ? null : value(get('Num. personas')),
