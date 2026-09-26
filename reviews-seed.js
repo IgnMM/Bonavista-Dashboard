@@ -21,7 +21,8 @@
     {platform:'Google',building:'Bonavista Eixample',score:3.6,capturedAt:CAPTURED,source:'https://www.google.com/maps/place/Bonavista+Apartments+-+Eixample',categories:{}},
     {platform:'Google',building:'Bonavista Tamarit',score:5,capturedAt:CAPTURED,source:'https://www.google.com/maps/search/Bonavista+Apartments+Tamarit+Barcelona',categories:{}}
   ], rates:[
-    {property:'Espais Blaus Apartments (referencia provisional, a validar con Pablo)',building:'Bonavista Virreina',source:'https://www.booking.com/hotel/es/espais-blaus-apartments.html',capturedAt:CAPTURED,checkin:'2026-10-15',nights:2,guests:2,currency:'EUR',total:702,plan:'estándar'}
+    {property:'Bonavista Apartments - Virreina (propio, Booking)',building:'Bonavista Virreina',source:'https://www.booking.com/hotel/es/bonavista-apartments-barcelona-virreina.html',capturedAt:CAPTURED,checkin:'2026-10-15',nights:2,guests:2,currency:'EUR',total:535,plan:'estándar, impuestos incluidos'},
+    {property:'Espais Blaus Apartments (competidor, referencia provisional a validar con Pablo)',building:'Bonavista Virreina',source:'https://www.booking.com/hotel/es/espais-blaus-apartments.html',capturedAt:CAPTURED,checkin:'2026-10-15',nights:2,guests:2,currency:'EUR',total:702,plan:'estándar'}
   ]};
   function trySeed(){
     if(!window.BONAVISTA_MARKET){setTimeout(trySeed,50);return}

@@ -127,5 +127,39 @@ function renderHighlights(){
  const bullets=computeHighlights();
  holder.innerHTML=bullets.length?`<h2>Lo más destacado</h2><ul class="highlights-list">${bullets.map(b=>`<li class="hl-${b.kind}">${safe(b.text)}</li>`).join('')}</ul><p class="note">Generado con reglas a partir de los datos cargados en este navegador; no es un resumen redactado por IA.</p>`:'';
 }
-const olderRender=render;render=function(){olderRender();renderPaceMonthly();compareCharts();renderMAT();annotateBaseCards();annotatePendingCards();renderHighlights()};
+function toplineMonthValue(key,building,month,day){
+ const prev=monthEarlier(month,-12);
+ if(['occupancy','adr','revpar'].includes(key)){
+  const now=metrics(month,building)[key],before=hasHistory(prev,building)?detailMetric(historic(prev,building,day),key,prev,building):null;
+  return{now,before};
+ }
+ const now=current(month,building).gross,before=hasHistory(prev,building)?historic(prev,building,day).gross:null;
+ return{now,before};
+}
+function toplineTile(label,value,fmt,delta,ppMode){
+ const deltaText=delta===null?'Sin comparación: importa el histórico':(ppMode?`${(delta*100)>=0?'+':''}${numeric(delta*100)} p.p. vs AA`:`${delta>=0?'+':''}${percent(delta)} vs AA`);
+ const cls=delta===null?'':(delta>=0?'good':'bad');
+ return `<div class="topline-tile ${cls}"><span>${safe(label)}</span><strong>${value===null||value===undefined?'—':safe(fmt(value))}</strong><small>${deltaText}</small></div>`;
+}
+function renderTopline(){
+ const holder=$('topline');if(!holder)return;
+ if(!payload){holder.innerHTML='';return}
+ const building=$('building').value,month=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1);
+ if(!month){holder.innerHTML='';return}
+ const day=asOfDay(month);
+ const pvp=toplineMonthValue('gross',building,month,day);
+ const pvpDelta=(pvp.now==null||pvp.before==null||!pvp.before)?null:(pvp.now-pvp.before)/pvp.before;
+ const ytd=yearToDate(month,building,false),prevYearMonth=String(Number(month.slice(0,4))-1)+month.slice(4),ytdPrev=yearToDate(prevYearMonth,building,true,day);
+ const ytdComparable=ytd.monthsUsed.length&&ytdPrev.monthsUsed.length&&ytd.monthsUsed.length===ytdPrev.monthsUsed.length;
+ const ytdDelta=ytdComparable&&ytdPrev.stats.gross?(ytd.stats.gross-ytdPrev.stats.gross)/ytdPrev.stats.gross:null;
+ const occ=toplineMonthValue('occupancy',building,month,day),occDelta=(occ.now==null||occ.before==null)?null:occ.now-occ.before;
+ const adr=toplineMonthValue('adr',building,month,day),adrDelta=(adr.now==null||adr.before==null||!adr.before)?null:(adr.now-adr.before)/adr.before;
+ holder.innerHTML=`<h2>Resumen del periodo</h2><div class="topline-grid">
+  ${toplineTile('Producción PVP · mes a día '+day,pvp.now,amount,pvpDelta)}
+  ${toplineTile('Producción PVP · acumulado '+month.slice(0,4),ytdComparable?ytd.stats.gross:null,amount,ytdComparable?ytdDelta:null)}
+  ${toplineTile('Ocupación · mes (estimada)',occ.now,percent,occDelta,true)}
+  ${toplineTile('ADR sin IVA · mes (estimado)',adr.now,amount,adrDelta)}
+ </div><p class="note">Mes: comparado con el mismo día del año anterior. Acumulado: solo se calcula cuando el año actual y el anterior tienen cargado el mismo número de meses. Ocupación y ADR dependen de las hipótesis editables más abajo.</p>`;
+}
+const olderRender=render;render=function(){olderRender();renderPaceMonthly();compareCharts();renderMAT();annotateBaseCards();annotatePendingCards();renderHighlights();renderTopline()};
 })();
