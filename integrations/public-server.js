@@ -1,0 +1,18 @@
+'use strict';
+/* Run locally with Node and Playwright. The dashboard calls this on demand. */
+const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
+const {flattenJsonLd,ratingFromJsonLd,ratingFromPage,categoriesFromPage}=require('./extract-public');
+const CONFIG=path.join(__dirname,'public-pages.json');
+const PORT=Number(process.env.BONAVISTA_PORT||8765),ALLOWED_HOSTS=new Set(['www.booking.com','www.expedia.com','www.airbnb.com','www.google.com','maps.google.com']);
+function validated(raw){const url=new URL(raw);if(url.protocol!=='https:'||!ALLOWED_HOSTS.has(url.hostname))throw Error('Dominio no admitido: '+url.hostname);return url.toString();}
+function send(res,status,body){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(body));}
+async function collect(browser,page){const response=await page.goto(validated(browser.url),{waitUntil:'domcontentloaded',timeout:25000});if(!response||response.status()>=400)throw Error('HTTP '+(response?.status()||'sin respuesta'));await page.waitForTimeout(1200);const info=await page.evaluate(({platform})=>{
+ // A function cannot import CommonJS in a page. It is injected separately.
+ return {rating:window.__bonavistaRating(document,platform),categories:window.__bonavistaCategories(document,platform)};
+ },{platform:browser.platform});if(!info.rating)throw Error('Nota no visible en esta ficha');const scale=browser.platform==='Airbnb'||browser.platform==='Google'?5:10;const score=info.rating.scale&&info.rating.scale!==scale?Math.round(info.rating.score/info.rating.scale*scale*100)/100:info.rating.score;if(score<0||score>scale)throw Error('Escala de nota inesperada');return {platform:browser.platform,building:browser.building,score,categories:info.categories,capturedAt:new Date().toISOString(),source:browser.url};}
+async function refresh(){let playwright;try{playwright=require('playwright')}catch{throw Error('Instala Playwright: npm install --prefix integrations')};const config=JSON.parse(fs.readFileSync(CONFIG,'utf8')),reviews=[],rates=[],errors=[];const browser=await playwright.chromium.launch({headless:true});try{const page=await browser.newPage({locale:'es-ES',timezoneId:'Europe/Madrid'});await page.addInitScript(`const flattenJsonLd=${flattenJsonLd.toString()};const ratingFromJsonLd=${ratingFromJsonLd.toString()};window.__bonavistaRating=${ratingFromPage.toString()};window.__bonavistaCategories=${categoriesFromPage.toString()};`);
+ for(const profile of config.profiles){try{reviews.push(await collect(profile,page))}catch(e){errors.push({platform:profile.platform,building:profile.building,error:e.message})}}
+ // Prices need a configured property and a verified total for an exact stay;
+ // ambiguous page cards are deliberately not interpreted as prices.
+ }finally{await browser.close()}return {format:'bonavista-market-v1',reviews,rates,errors};}
+const server=http.createServer(async(req,res)=>{const origin=req.headers.origin||'';if(origin&&!/^https:\/\/ignmm\.github\.io$/.test(origin)&&origin!=='null'){send(res,403,{error:'Origen no autorizado'});return}if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':origin||'null','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end();return}res.setHeader('Access-Control-Allow-Origin',origin||'null');if(req.method==='POST'&&req.url==='/api/market-refresh'){try{send(res,200,await refresh())}catch(e){send(res,503,{error:e.message})}return}send(res,404,{error:'No encontrado'})});server.listen(PORT,'127.0.0.1',()=>console.log('Bonavista lector local: http://127.0.0.1:'+PORT));

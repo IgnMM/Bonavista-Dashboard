@@ -1,0 +1,60 @@
+{
+  "profiles": [
+    {
+      "platform": "Booking",
+      "building": "Bonavista Virreina",
+      "url": "https://www.booking.com/hotel/es/bonavista-apartments-barcelona-virreina.html"
+    },
+    {
+      "platform": "Booking",
+      "building": "Bonavista Passeig de Gracia",
+      "url": "https://www.booking.com/hotel/es/bonavista-apartments-barcelona.html"
+    },
+    {
+      "platform": "Booking",
+      "building": "Bonavista Pedrera",
+      "url": "https://www.booking.com/hotel/es/bonavista-apartments-pedrera-barcelona.html"
+    },
+    {
+      "platform": "Booking",
+      "building": "Bonavista Eixample",
+      "url": "https://www.booking.com/hotel/es/bonavista-apartments-barcelona-eixample.html"
+    },
+    {
+      "platform": "Expedia",
+      "building": "Bonavista Virreina",
+      "url": "https://www.expedia.com/Barcelona-Hotels-Bonavista-Apartments-Virreina.h10245743.Hotel-Information"
+    },
+    {
+      "platform": "Expedia",
+      "building": "Bonavista Pedrera",
+      "url": "https://www.expedia.com/Barcelona-Hotels-Bonavista-Apartments-Pedrera.h16448601.Hotel-Information"
+    },
+    {
+      "platform": "Expedia",
+      "building": "Bonavista Passeig de Gracia",
+      "url": "https://www.expedia.com/Barcelona-Hotels-Bonavista-Apartments-Passeig-De-Gracia.h10245491.Hotel-Information"
+    },
+    {
+      "platform": "Expedia",
+      "building": "Bonavista Eixample",
+      "url": "https://www.expedia.com/Barcelona-Hotels-Bonavista-Apartments-Eixample.h10245905.Hotel-Information"
+    },
+    {
+      "platform": "Airbnb",
+      "building": "Bonavista Virreina",
+      "url": "https://www.airbnb.com/rooms/43235590"
+    },
+    {
+      "platform": "Airbnb",
+      "building": "Bonavista Passeig de Gracia",
+      "url": "https://www.airbnb.com/rooms/1329067"
+    },
+    {
+      "platform": "Airbnb",
+      "building": "Bonavista Eixample",
+      "url": "https://www.airbnb.com/rooms/43236801"
+    }
+  ],
+  "competitors": []
+}

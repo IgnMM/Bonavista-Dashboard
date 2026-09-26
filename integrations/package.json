@@ -1,0 +1,1 @@
+{"private":true,"name":"bonavista-public-pages-reader","version":"0.1.0","scripts":{"start":"node public-server.js"},"dependencies":{"playwright":"^1.55.0"}}

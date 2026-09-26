@@ -1,0 +1,173 @@
+/* Explicit, editable modelling assumptions layered over Bookypro data. */
+const MODEL_KEY='bonavista-model-v1', REVIEW_KEY='bonavista-reviews-v1';
+let model=JSON.parse(localStorage.getItem(MODEL_KEY)||'{}');
+const money=n=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
+const pct=n=>new Intl.NumberFormat('es-ES',{style:'percent',maximumFractionDigits:1}).format(n);
+const num=n=>new Intl.NumberFormat('es-ES',{maximumFractionDigits:1}).format(n);
+const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const latest=()=>window.PORTFOLIO_BOOKINGS?.length?window.PORTFOLIO_BOOKINGS:(payload?.bookings||[]);
+function initModel(){
+  if(!payload)return;
+  model.units||={};model.blocks||={};
+  for(const b of [...new Set(latest().map(x=>x.building))]){
+    if(model.units[b]===undefined)model.units[b]=new Set(latest().filter(x=>x.building===b).map(x=>x.apartment).filter(x=>x&&x!=='Sin apartamento')).size;
+    if(model.blocks[b]===undefined)model.blocks[b]=0;
+  }
+  model.vat ??= 10;
+  model.cleaning ??= false;
+  model.cancelled ??= null;
+  model.priorMonth ??= null;
+  model.priorYTD ??= null;
+  model.direct ??= 'Bonavista,Witbooking,Excliente';
+  saveModel();
+  showModel();
+}
+function saveModel(){localStorage.setItem(MODEL_KEY,JSON.stringify(model))}
+function showModel(){
+  const buildings=[...new Set(latest().map(x=>x.building))].sort();
+  $('assumptionControls').innerHTML=`<div class="assumption-grid">
+   <label>IVA supuesto sobre alojamiento (%)<input id="vat" type="number" min="0" max="30" step="0.1" value="${model.vat}"></label>
+   <label>Canales considerados directos<input id="direct" type="text" value="${safe(model.direct)}"></label>
+   <label>Noches canceladas (si se conocen)<input id="cancelled" type="number" min="0" step="1" value="${model.cancelled??''}" placeholder="Sin dato"></label>
+   <label>Producción mismo mes del año anterior (€)<input id="priorMonth" type="number" min="0" step="0.01" value="${model.priorMonth??''}" placeholder="Sin dato"></label>
+   <label>Producción acumulada año anterior (€)<input id="priorYTD" type="number" min="0" step="0.01" value="${model.priorYTD??''}" placeholder="Sin dato"></label>
+   </div><p class="assumption-note">Para ocupación y RevPAR, número de apartamentos observado en el fichero como punto de partida. Comprueba el inventario real y los bloqueos. ADR supone que «Precio alquiler» incluye el IVA indicado y excluye limpieza.</p>
+   <label class="assumption-note"><input id="cleaning" type="checkbox" ${model.cleaning?'checked':''}> Incluir limpieza final en la base de ADR y RevPAR (hipótesis editable)</label>
+   <div>${buildings.map(b=>`<div class="inventory-row"><b>${safe(b)}</b><label>Apartamentos disponibles<input class="units" data-building="${safe(b)}" type="number" min="0" step="1" value="${model.units[b]}"></label><label>Noches bloqueadas en el mes<input class="blocks" data-building="${safe(b)}" type="number" min="0" step="1" value="${model.blocks[b]}"></label></div>`).join('')}</div>`;
+  for(const id of ['vat','direct','cancelled','priorMonth','priorYTD'])$(id).addEventListener('change',()=>{
+    model.vat=Number($('vat').value);model.direct=$('direct').value;model.cleaning=$('cleaning').checked;
+    model.cancelled=$('cancelled').value===''?null:Number($('cancelled').value);
+    model.priorMonth=$('priorMonth').value===''?null:Number($('priorMonth').value);
+    model.priorYTD=$('priorYTD').value===''?null:Number($('priorYTD').value);
+    saveModel();render();
+  });
+  $('cleaning').addEventListener('change',()=>{model.cleaning=$('cleaning').checked;saveModel();render()});
+  document.querySelectorAll('.units,.blocks').forEach(input=>input.addEventListener('change',()=>{
+    const b=input.dataset.building;const n=Number(input.value);
+    if(input.classList.contains('units'))model.units[b]=n;else model.blocks[b]=n;
+    saveModel();render();
+  }));
+}
+function stayOverlap(item,month){
+  if(!item.arrival||!item.departure)return 0;
+  const start=month+'-01';let [y,m]=month.split('-').map(Number);
+  const end=new Date(Date.UTC(y,m,1)).toISOString().slice(0,10);
+  return Math.max(0,Math.round((Math.min(Date.parse(item.departure),Date.parse(end))-Math.max(Date.parse(item.arrival),Date.parse(start)))/86400000));
+}
+function metrics(monthOverride,buildingOverride){
+  const building=buildingOverride??$('building').value, month=monthOverride??$('month').value;
+  const all=latest().filter(x=>!building||x.building===building);
+  const months=month?[month]:[...new Set(all.map(x=>x.month))].sort();
+  const occupied=all.reduce((sum,x)=>sum+months.reduce((a,m)=>a+stayOverlap(x,m),0),0);
+  const overnight=all.reduce((sum,x)=>sum+(x.nights?Math.max(0,x.rental-x.discount+(model.cleaning?(x.cleaning||0):0))*(months.reduce((a,m)=>a+stayOverlap(x,m),0)/x.nights):0),0);
+  const present=building?[building]:[...new Set(all.map(x=>x.building))];
+  const available=months.reduce((sum,m)=>{const [year,mo]=m.split('-').map(Number);const days=new Date(year,mo,0).getDate();return sum+present.reduce((a,b)=>a+Math.max(0,(Number(model.units[b])||0)*days-(Number(model.blocks[b])||0)),0)},0);
+  const revenue=overnight/(1+Number(model.vat||0)/100);
+  const rows=(monthOverride||buildingOverride)?latest().filter(x=>(!month||x.month===month)&&(!building||x.building===building)):subset();const gross=rows.reduce((a,b)=>a+b.gross,0);
+  const direct=new Set(model.direct.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean));
+  const directGross=rows.filter(x=>direct.has(x.channel.toLowerCase())).reduce((a,b)=>a+b.gross,0);
+  return {rows,months,occupied,available,adr:occupied?revenue/occupied:null,revpar:available?revenue/available:null,occupancy:available?occupied/available:null,direct:gross?directGross/gross:null,gross};
+}
+function chart(title,entries,formatter=money,ordered=false){
+  const ranked=entries.filter(([,n])=>Number.isFinite(n)&&n>=0).sort((a,b)=>ordered?String(a[0]).localeCompare(String(b[0])):b[1]-a[1]).slice(0,ordered?31:10);
+  const max=Math.max(1,...ranked.map(x=>x[1]));
+  if(!ranked.length)return `<div class="panel"><h2>${safe(title)}</h2><p class="note">Sin datos para esta selección.</p></div>`;
+  return `<div class="panel"><h2>${safe(title)}</h2><div class="chart-bars ${ordered?'timeline':''}">${ranked.map(([name,n])=>`<div class="chart-column" title="${safe(name)}: ${safe(formatter(n))}"><b>${safe(formatter(n))}</b><div class="bar" style="height:${Math.max(2,80*n/max)}px"></div><span>${safe(ordered?(String(name).length===7?String(name):String(name).slice(-2)):name)}</span></div>`).join('')}</div></div>`;
+}
+function showCharts(rows){
+  const tally=(key,measure=()=>1)=>{const t={};for(const x of rows)t[x[key]]=(t[x[key]]||0)+measure(x);return Object.entries(t)};
+  const leadBuckets={'0–7 días':0,'8–30 días':0,'31–90 días':0,'Más de 90 días':0};
+  const stayBuckets={'1–2 noches':0,'3–4 noches':0,'5–7 noches':0,'8+ noches':0};
+  for(const x of rows){leadBuckets[x.lead<=7?'0–7 días':x.lead<=30?'8–30 días':x.lead<=90?'31–90 días':'Más de 90 días']++;stayBuckets[x.nights<=2?'1–2 noches':x.nights<=4?'3–4 noches':x.nights<=7?'5–7 noches':'8+ noches']++}
+  const values=[
+   chart('Producción PVP por mes',tally('month',x=>x.gross),money,true),
+   chart('Producción diaria por llegada',tally('arrival',x=>x.gross),money,true),
+   chart('Mix de ventas por canal',tally('channel',x=>x.gross)),
+   chart('Estancia · distribución',Object.entries(stayBuckets),num),
+   chart('Ocupantes por reserva',tally('guests'),num),
+   chart('Países de origen · % reservas',tally('country'),n=>pct(n/(rows.length||1))),
+   chart('Producción por tarifa',tally('rate',x=>x.gross)),
+   chart('Antelación de reserva',Object.entries(leadBuckets),num),
+   chart('Noches por edificio',tally('building',x=>x.nights),num),
+   chart('Cancelaciones · noches',model.cancelled===null?[]:[['Confirmadas',rows.reduce((n,x)=>n+x.nights,0)],['Canceladas',model.cancelled]],num)
+  ];
+  $('charts').innerHTML=values.join('');
+}
+function showReviews(){
+  const history=JSON.parse(localStorage.getItem(REVIEW_KEY)||'{}');
+  const building=$('building').value||'TODOS';
+  $('reviews').innerHTML='<div class="reviews-grid">'+[['Booking',10],['Expedia',10],['Airbnb',5],['Google',5]].map(([platform,scale])=>{
+    const key=building+'|'+platform,points=history[key]||[],last=points.at(-1),prev=points.at(-2);
+    const delta=last&&prev?` · ${last.score-prev.score>=0?'+':''}${num(last.score-prev.score)} desde ${new Date(prev.date).toLocaleDateString('es-ES')}`:'';
+    return `<div class="review-input"><label>${platform} · ${last?num(last.score)+'/'+scale:'sin dato'}</label><small>${last?new Date(last.date).toLocaleDateString('es-ES')+delta:'Sin captura inicial'}</small><input type="number" step="0.1" min="0" max="${scale}" placeholder="Nota de 0 a ${scale}" data-platform="${platform}" data-scale="${scale}"><div class="assumption-grid"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Limpieza" data-category="cleaning" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Atención" data-category="staff" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Ubicación" data-category="location" data-owner="${platform}"></div>${last&&last.categories?`<small>Aspectos: ${Object.entries(last.categories).map(([k,v])=>`${safe(k)} ${num(v)}`).join(' · ')}</small>`:''}<button class="ghost" data-save-review="${platform}">Guardar nota</button></div>`
+  }).join('')+'</div><p class="note">Selección: '+safe(building)+'. Introduce solo las categorías que publique cada plataforma. Se muestra la escala original; no se mezclan notas de plataformas distintas.</p>';
+  document.querySelectorAll('[data-save-review]').forEach(button=>button.addEventListener('click',()=>{
+    const name=button.dataset.saveReview,input=document.querySelector(`[data-platform="${name}"]`),raw=input.value,score=Number(raw),scale=Number(input.dataset.scale);
+    if(raw===''||!Number.isFinite(score)||score<0||score>scale){alert('Introduce una nota entre 0 y '+scale);return}
+    const categories={};document.querySelectorAll(`[data-owner="${name}"]`).forEach(x=>{if(x.value!==''){const v=Number(x.value);if(Number.isFinite(v)&&v>=0&&v<=scale)categories[x.dataset.category]=v}});
+    (history[building+'|'+name]??=[]).push({date:new Date().toISOString(),score,categories});localStorage.setItem(REVIEW_KEY,JSON.stringify(history));showReviews();
+  }));
+}
+const previousRender=render;
+render=function(){
+  previousRender();
+  initModel();
+  const m=metrics(),caption='Hipótesis editable · pendiente de validación';
+  const occupancy=m.occupancy===null?'—':pct(m.occupancy);
+  const adr=m.adr===null?'—':money(m.adr);
+  const revpar=m.revpar===null?'—':money(m.revpar);
+  const cancel=model.cancelled===null?'—':pct(model.cancelled/(model.cancelled+m.occupied||1));
+  const yoy=model.priorMonth>0?pct((m.gross-model.priorMonth)/model.priorMonth):'—';
+  const selectedYear=($('month').value||m.months.at(-1)||'').slice(0,4);
+  const ytdRows=latest().filter(x=>x.month.startsWith(selectedYear)&&(!$('building').value||x.building===$('building').value));
+  const ytd=ytdRows.reduce((n,x)=>n+x.gross,0),ytdMonths=[...new Set(ytdRows.map(x=>x.month))].sort();
+  const ytdExpected=Number((m.months.at(-1)||'').slice(5,7));
+  const ytdComparison=model.priorYTD>0?pct((ytd-model.priorYTD)/model.priorYTD):'—';
+  $('pending').innerHTML=[
+   ['Ocupación',occupancy,`${num(m.occupied)} noches ocupadas / ${num(m.available)} disponibles · ${caption}`,'occupancy'],
+   ['ADR sin IVA',adr,'Alquiler menos descuento'+(model.cleaning?' más limpieza':'')+' / noches · IVA '+num(model.vat)+' %','adr'],
+   ['RevPAR sin IVA',revpar,'Alquiler / noches disponibles · '+caption,'revpar'],
+   ['Venta directa',m.direct===null?'—':pct(m.direct),'Canales editables · referencia 2025: 13,4 % (Pablo)','direct'],
+   ['Acumulado '+selectedYear,money(ytd),`${ytdMonths.length}/${ytdExpected||'?'} meses presentes · ${ytdMonths.length<ytdExpected?'INCOMPLETO':'completo'}`,'gross'],
+   ['Cancelaciones',cancel,'Noches canceladas introducidas / total noches','cancel'],
+   ['Pickup neto','—','Se calculará al comparar dos capturas del mismo periodo','pickup'],
+   ['Ventas vs. mismo mes anterior',yoy,'Base del mismo mes introducida por Pablo','gross'],
+   ['Acumulado vs. año anterior',ytdComparison,'Base acumulada introducida por Pablo; verificar cobertura','gross']
+  ].map(c=>`<button class="card modeled" data-metric="${c[3]}"><span>${safe(c[0])}</span><strong>${safe(c[1])}</strong><em>${safe(c[2])}</em></button>`).join('');
+  document.querySelectorAll('[data-metric]').forEach(button=>button.addEventListener('click',()=>modelDetail(button.dataset.metric)));
+  showCharts(m.rows);
+  showReviews();
+  showPickup();
+  $('quality').textContent+=' Ocupación estimada con los apartamentos observados en el fichero y sin estancias que empezaron antes del periodo exportado.'+(m.occupancy>1?' Aviso: ocupación superior al 100%; revisa el inventario, los bloqueos o las noches.':'');
+};
+async function showPickup(){
+  const snapshotKey=$('snapshots').value, selection=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1), building=$('building').value;
+  const list=await listSnapshots().catch(()=>[]);
+  const currentIndex=snapshotKey?list.findIndex(x=>x.id===snapshotKey):0;
+  if(currentIndex<0)return;
+  const previous=list.slice(currentIndex+1).find(x=>x.data.bookings.some(b=>(!selection||b.month===selection)&&(!building||b.building===building)));
+  if(!previous)return;
+  const included=x=>(!selection||x.month===selection)&&(!building||x.building===building);
+  const before=previous.data.bookings.filter(included),now=latest().filter(included);
+  const delta=now.reduce((s,x)=>s+x.nights,0)-before.reduce((s,x)=>s+x.nights,0);
+  const deltaValue=now.reduce((s,x)=>s+x.gross,0)-before.reduce((s,x)=>s+x.gross,0);
+  const card=document.querySelector('[data-metric="pickup"]');
+  if(card && selection===($('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1)) && building===$('building').value){
+    card.querySelector('strong').textContent=(delta>=0?'+':'')+num(delta)+' noches';
+    card.querySelector('em').textContent=(deltaValue>=0?'+':'')+money(deltaValue)+' PVP desde '+new Date(previous.id).toLocaleDateString('es-ES')+' · comparar cobertura';
+  }
+}
+function modelDetail(kind){
+  const building=$('building').value;
+  const months=[...new Set(latest().filter(x=>!building||x.building===building).map(x=>x.month))].sort();
+  const title={occupancy:'Ocupación',adr:'ADR sin IVA',revpar:'RevPAR sin IVA',direct:'Venta directa',cancel:'Cancelaciones',pickup:'Pickup',gross:'Producción PVP'}[kind];
+  const result=months.map(month=>{
+    const m=metrics(month);
+    const calculated={occupancy:m.occupancy===null?'—':pct(m.occupancy),adr:m.adr===null?'—':money(m.adr),revpar:m.revpar===null?'—':money(m.revpar),direct:m.direct===null?'—':pct(m.direct),gross:money(m.gross),cancel:model.cancelled===null?'—':'Requiere canceladas por mes',pickup:'Requiere dos capturas'};
+    return `<tr><td>${safe(month)}</td><td>${safe(calculated[kind])}</td><td>${m.rows.length} reservas · ${num(m.occupied)} noches de estancia</td></tr>`;
+  }).join('');
+  $('detail').innerHTML=`<h2>${safe(title)} · desglose mensual</h2><p class="note">Las hipótesis de IVA, inventario, bloqueos y canales directos se editan arriba. Los datos ausentes se muestran como tales.</p><table style="width:100%;border-collapse:collapse"><thead><tr><th>Mes</th><th>Valor</th><th>Base</th></tr></thead><tbody>${result}</tbody></table>`;
+  $('detail').classList.remove('hidden');$('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+const previousSetup=setupFilters;
+setupFilters=function(data){previousSetup(data);initModel()};

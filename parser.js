@@ -1,6 +1,6 @@
 /* XLSX/CSV reader. Only analytical columns are retained; guest identity fields are never read into result rows. */
 const REQUIRED = ['Id','Fecha reserva','Estado','Edificio','Llegada','Salida','Noches','Precio total','Canal'];
-const OPTIONAL = ['País','Tarifas','Num. personas','Precio alquiler','Precio tasa turística','Precio de descuento'];
+const OPTIONAL = ['País','Tarifas','Num. personas','Precio alquiler','Precio tasa turística','Precio de descuento','Alojamiento'];
 const xml = text => {
   const doc = new DOMParser().parseFromString(text, 'application/xml');
   if (doc.querySelector('parsererror')) throw Error('El Excel contiene XML no válido');
@@ -79,7 +79,7 @@ async function readXlsx(file) {
     const arrival=date(get('Llegada')), departure=date(get('Salida')), booked=date(get('Fecha reserva'));
     const nights=value(get('Noches'));
     bookings.set(id,{
-      id, month:arrival.slice(0,7), building:String(get('Edificio')||'Sin edificio'),
+      id, month:arrival.slice(0,7), arrival, departure, apartment:String(get('Alojamiento')||'Sin apartamento'), building:String(get('Edificio')||'Sin edificio'),
       channel:String(get('Canal')||'Sin canal'), country:String(get('País')||'Sin país'),
       rate:String(get('Tarifas')||'Sin tarifa'), status:String(get('Estado')),
       nights, guests:get('Num. personas') === '' ? null : value(get('Num. personas')),
@@ -115,8 +115,9 @@ async function analyseFiles(bookFile,serviceFile){
   for(const row of rows){const id=String(row[idCol]||'').trim();if(!id)continue;serviceLines++;const concept=String(row[conceptCol]||'').trim(),amount=value(row[amountCol]);if(!services.has(id))services.set(id,new Map());const items=services.get(id);items.set(concept,(items.get(concept)||0)+amount)}
   const missing=[...bookings.keys()].filter(id=>!services.has(id)),orphan=[...services.keys()].filter(id=>!bookings.has(id));
   if(missing.length||orphan.length)throw Error(`Los archivos no coinciden: ${missing.length} reservas sin servicios y ${orphan.length} servicios sin reserva`);
-  for(const [id,b] of bookings){const components=services.get(id);b.service_total=[...components].reduce((s,[name,v])=>s+(name==='Total extras'?0:v),0);b.reconciliation_delta=Math.round((b.gross-(b.service_total-b.discount))*100)/100}
+  for(const [id,b] of bookings){const components=services.get(id);b.service_total=[...components].reduce((s,[name,v])=>s+(name==='Total extras'?0:v),0);b.cleaning=[...components].reduce((s,[name,v])=>s+(name.includes('Limpieza final')?v:0),0);b.reconciliation_delta=Math.round((b.gross-(b.service_total-b.discount))*100)/100}
   const all=[...bookings.values()], items=all.filter(b=>b.status.toLowerCase()==='confirmed');
   if (!items.length) throw Error('No hay reservas confirmadas en esta exportación');
-  return {bookings:items,meta:{reservations:items.length,excluded_reservations:all.length-items.length,service_lines:serviceLines,date_warnings:items.filter(b=>b.date_warning).length,reconciliation_warnings:items.filter(b=>Math.abs(b.reconciliation_delta)>0.02).length,status_counts:Object.fromEntries([...new Set(all.map(b=>b.status))].map(x=>[x,all.filter(b=>b.status===x).length])),channel_coverage:items.filter(b=>b.channel!=='Sin canal').length}};
+  const fileDate=bookFile.name.match(/(20\d{2})-(\d{2})-(\d{2})/);
+  return {bookings:items,meta:{as_of:fileDate?`${fileDate[1]}-${fileDate[2]}-${fileDate[3]}`:new Date().toISOString().slice(0,10),reservations:items.length,excluded_reservations:all.length-items.length,service_lines:serviceLines,date_warnings:items.filter(b=>b.date_warning).length,reconciliation_warnings:items.filter(b=>Math.abs(b.reconciliation_delta)>0.02).length,status_counts:Object.fromEntries([...new Set(all.map(b=>b.status))].map(x=>[x,all.filter(b=>b.status===x).length])),channel_coverage:items.filter(b=>b.channel!=='Sin canal').length}};
 }

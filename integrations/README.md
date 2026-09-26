@@ -1,0 +1,28 @@
+# Prototipo de lector de valoraciones (desarrollo)
+
+Este lector se ejecutó como prototipo local de desarrollo. **Pablo no tendrá que instalarlo ni ejecutar comandos**: el servicio final se alojará y administrará con el dashboard. No se utilizan API ni credenciales de Booking, Expedia o Airbnb. El lector visita las fichas públicas enumeradas en `public-pages.json`, intenta leer la nota global y categorías visibles y devuelve por separado los errores. No inicia sesión ni intenta superar bloqueos de acceso. Las URL son fichas encontradas en buscadores y deben cotejarse con Pablo, especialmente cuando una plataforma tiene varias fichas por apartamento.
+
+Solo para un desarrollador que quiera probar el prototipo local:
+
+```sh
+cd integrations
+npm install
+npx playwright install chromium
+npm start
+```
+
+Esta prueba local no constituye el despliegue para Pablo. Las reservas Bookypro no se envían al lector. La consulta puede fallar según cambios en cada página o limitaciones de acceso; aún no ha sido posible verificarla de extremo a extremo sobre las webs reales desde este entorno. La arquitectura final requiere un servicio alojado y acceso restringido; GitHub Pages por sí solo no ejecuta este lector.
+
+Booking, Expedia y Airbnb restringen el acceso automatizado en sus condiciones públicas. La lectura puede ser técnicamente posible, pero antes de activar una fuente Bonavista debe elegir conscientemente el método de obtención, con preferencia por una exportación o proveedor que ya utilice su equipo. Se puede excluir cualquier plataforma quitando sus filas de `public-pages.json`.
+
+La **consulta de precios** permanece sin automatizar: hay que fijar lista de comparables, ciudad/zona, fechas, ocupación, duración, condiciones y precio total con impuestos; un precio genérico mostrado en una página sin esos criterios no es comparable. El lector devuelve `rates: []` hasta definir y validar esas reglas. Las fuentes que deniegue o no logre leer se muestran como no disponibles.
+
+## Contrato de datos
+
+Esquema de cada valoración: `{ "platform": "Booking|Expedia|Airbnb|Google", "building": "nombre tal como figura en el dashboard", "score": 8.4, "capturedAt": "2026-09-26T10:00:00Z", "source": "https://...", "categories": {"cleaning":8.2,"staff":9.0,"location":8.5} }`. Booking y Expedia usan escala de 0 a 10; Airbnb y Google, de 0 a 5. El conector debe obtener el score directamente de la ficha pública, identificar la ficha correspondiente y aportar su URL verificable.
+
+Esquema de cada tarifa: `{ "property": "alojamiento comparable", "building": "nombre del edificio Bonavista de referencia", "source": "https://...", "capturedAt": "2026-09-26T10:00:00Z", "checkin": "2026-10-01", "nights": 2, "guests": 2, "currency": "EUR", "total": 280, "plan": "cancelación flexible" }`. `total` debe incluir todos los conceptos aplicables y el proveedor debe normalizar moneda, impuestos, ocupación, noches, condiciones y canal de compra. No comparar tarifas con criterios distintos sin avisarlo.
+
+La app guarda localmente un cambio de valoración solo si la nota o categorías difieren de la última captura de esa ficha; guarda cada tarifa nueva por ficha, fuente, fechas, ocupantes, importe, moneda y plan. Una recarga idéntica informa 0 nuevos. Se puede importar la misma respuesta JSON manualmente para ensayar el contrato o usar exportaciones facilitadas por un proveedor con permiso.
+
+Accesos necesarios para el conector: IDs de fichas de Bonavista en Booking, Expedia, Airbnb y Google; autorización API de las plataformas o del gestor de canales; proveedor de tarifas con derecho a consultar y almacenar resultados; lista de competidores por zona y reglas de estancia. Airbnb prohíbe el scraping automatizado de su web en sus condiciones: obtener datos desde una integración autorizada o un proveedor con licencia.
