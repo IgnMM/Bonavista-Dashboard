@@ -2,14 +2,6 @@
 const BASELINE_KEY='bonavista-baseline-v1';
 let historical=window.BONAVISTA_BASELINE||JSON.parse(localStorage.getItem(BASELINE_KEY)||'null');
 function initBaseline(){
-  $('historicalFile').addEventListener('change',async event=>{
-    const file=event.target.files[0];if(!file)return;
-    try{
-      const parsed=JSON.parse(await file.text());
-      if(!['bonavista-historical-v1','bonavista-historical-v2'].includes(parsed.format)||!Array.isArray(parsed.rows))throw Error('Formato de histórico no válido');
-      historical=parsed;localStorage.setItem(BASELINE_KEY,JSON.stringify(parsed));render();
-    }catch(e){$('status').textContent='No se pudo leer el histórico: '+e.message}
-  });
   $('asOfDate').addEventListener('change',()=>{if(payload){payload.meta.as_of=$('asOfDate').value;const month=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1);if(month)window.PORTFOLIO_ASOF[month]=$('asOfDate').value;render()}});
 }
 function previousYearComparison(){
