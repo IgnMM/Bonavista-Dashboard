@@ -54,6 +54,31 @@
       "platform": "Airbnb",
       "building": "Bonavista Eixample",
       "url": "https://www.airbnb.com/rooms/43236801"
+    },
+    {
+      "platform": "Google",
+      "building": "Bonavista Virreina",
+      "url": "https://www.google.com/maps/search/Bonavista+Apartments+Virreina+Barcelona"
+    },
+    {
+      "platform": "Google",
+      "building": "Bonavista Passeig de Gracia",
+      "url": "https://www.google.com/maps/search/Bonavista+Apartments+Passeig+de+Gracia+Barcelona"
+    },
+    {
+      "platform": "Google",
+      "building": "Bonavista Eixample",
+      "url": "https://www.google.com/maps/place/Bonavista+Apartments+-+Eixample"
+    },
+    {
+      "platform": "Google",
+      "building": "Bonavista Pedrera",
+      "url": "https://www.google.com/maps/place/Bonavista+Apartments+-+Pedrera"
+    },
+    {
+      "platform": "Google",
+      "building": "Bonavista Tamarit",
+      "url": "https://www.google.com/maps/search/Bonavista+Apartments+Tamarit+Barcelona"
     }
   ],
   "competitors": []

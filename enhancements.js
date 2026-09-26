@@ -93,14 +93,26 @@ function showCharts(rows){
   ];
   $('charts').innerHTML=values.join('');
 }
+function nearestPoint(points,targetTime,toleranceDays){
+  let best=null,bestDiff=Infinity;
+  for(const p of points){const diff=Math.abs(new Date(p.date).getTime()-targetTime);if(diff<bestDiff&&diff<=toleranceDays*86400000){best=p;bestDiff=diff}}
+  return best;
+}
+function reviewMovement(points){
+  const last=points.at(-1);if(!last)return'';
+  const lastTime=new Date(last.date).getTime();
+  const monthAgo=nearestPoint(points.slice(0,-1),lastTime-30*86400000,10);
+  const yearAgo=nearestPoint(points.slice(0,-1),lastTime-365*86400000,30);
+  const fmt=(ref)=>ref?`${last.score-ref.score>=0?'+':''}${num(last.score-ref.score)} desde ${new Date(ref.date).toLocaleDateString('es-ES')}`:'sin captura de referencia';
+  return `<small>Vs. mes anterior: ${fmt(monthAgo)}</small><small>Vs. año anterior: ${fmt(yearAgo)}</small>`;
+}
 function showReviews(){
   const history=JSON.parse(localStorage.getItem(REVIEW_KEY)||'{}');
   const building=$('building').value||'TODOS';
   $('reviews').innerHTML='<div class="reviews-grid">'+[['Booking',10],['Expedia',10],['Airbnb',5],['Google',5]].map(([platform,scale])=>{
-    const key=building+'|'+platform,points=history[key]||[],last=points.at(-1),prev=points.at(-2);
-    const delta=last&&prev?` · ${last.score-prev.score>=0?'+':''}${num(last.score-prev.score)} desde ${new Date(prev.date).toLocaleDateString('es-ES')}`:'';
-    return `<div class="review-input"><label>${platform} · ${last?num(last.score)+'/'+scale:'sin dato'}</label><small>${last?new Date(last.date).toLocaleDateString('es-ES')+delta:'Sin captura inicial'}</small><input type="number" step="0.1" min="0" max="${scale}" placeholder="Nota de 0 a ${scale}" data-platform="${platform}" data-scale="${scale}"><div class="assumption-grid"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Limpieza" data-category="cleaning" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Atención" data-category="staff" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Ubicación" data-category="location" data-owner="${platform}"></div>${last&&last.categories?`<small>Aspectos: ${Object.entries(last.categories).map(([k,v])=>`${safe(k)} ${num(v)}`).join(' · ')}</small>`:''}<button class="ghost" data-save-review="${platform}">Guardar nota</button></div>`
-  }).join('')+'</div><p class="note">Selección: '+safe(building)+'. Introduce solo las categorías que publique cada plataforma. Se muestra la escala original; no se mezclan notas de plataformas distintas.</p>';
+    const key=building+'|'+platform,points=history[key]||[],last=points.at(-1);
+    return `<div class="review-input"><label>${platform} · ${last?num(last.score)+'/'+scale:'sin dato'}</label><small>${last?'Última captura: '+new Date(last.date).toLocaleDateString('es-ES')+(last.source?` · <a href="${safe(last.source)}" target="_blank" rel="noopener noreferrer">fuente</a>`:''):'Sin captura inicial'}</small>${reviewMovement(points)}<input type="number" step="0.1" min="0" max="${scale}" placeholder="Nota de 0 a ${scale}" data-platform="${platform}" data-scale="${scale}"><div class="assumption-grid"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Limpieza" data-category="cleaning" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Atención" data-category="staff" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Ubicación" data-category="location" data-owner="${platform}"></div>${last&&last.categories&&Object.keys(last.categories).length?`<small>Aspectos: ${Object.entries(last.categories).map(([k,v])=>`${safe(k)} ${num(v)}`).join(' · ')}</small>`:''}<button class="ghost" data-save-review="${platform}">Guardar nota</button></div>`
+  }).join('')+'</div><p class="note">Selección: '+safe(building)+'. Las notas son por edificio: elige uno arriba para verlas (no se agregan varios edificios en una sola cifra). Introduce solo las categorías que publique cada plataforma; no se mezclan escalas de plataformas distintas.</p>';
   document.querySelectorAll('[data-save-review]').forEach(button=>button.addEventListener('click',()=>{
     const name=button.dataset.saveReview,input=document.querySelector(`[data-platform="${name}"]`),raw=input.value,score=Number(raw),scale=Number(input.dataset.scale);
     if(raw===''||!Number.isFinite(score)||score<0||score>scale){alert('Introduce una nota entre 0 y '+scale);return}
