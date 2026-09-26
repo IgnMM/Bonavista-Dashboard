@@ -1,0 +1,9 @@
+# Nunca publicar exportaciones ni copias de seguridad de reservas.
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+bonavista-dashboard-copia-*.json
+*.sqlite
+.DS_Store
+__pycache__/
