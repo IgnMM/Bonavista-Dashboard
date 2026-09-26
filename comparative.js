@@ -77,5 +77,55 @@ function annotateBaseCards(){
   node.textContent=(a===null||b===null||!b)?'Sin dato comparable ('+safe(label)+')':('vs AA: '+(a-b>=0?'+':'')+percent((a-b)/b));
  }
 }
-const olderRender=render;render=function(){olderRender();renderPaceMonthly();compareCharts();renderMAT();annotateBaseCards()};
+const PENDING_RATE_KEYS=new Set(['occupancy','direct','cancel']);
+function annotatePendingCards(){
+ if(!payload)return;
+ const building=$('building').value,month=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1);
+ if(!month)return;
+ const prev=monthEarlier(month,-12),day=asOfDay(month),has=hasHistory(prev,building);
+ const cards=[...document.querySelectorAll('#pending button[data-metric]')].filter(c=>['occupancy','adr','revpar','direct','cancel'].includes(c.dataset.metric));
+ for(const card of cards){
+  const key=card.dataset.metric;
+  let node=card.querySelector('.yoy');if(!node){node=document.createElement('small');node.className='yoy';card.appendChild(node)}
+  if(!has){node.textContent='Sin comparación: importa el histórico agregado';continue}
+  let a,b;
+  if(key==='cancel'){
+   a=model.cancelled===null?null:Number(model.cancelled)/(Number(model.cancelled)+current(month,building).nights||1);
+   const canceled=historical.rows.filter(x=>x.month===prev&&(!building||x.building===building)).reduce((n,x)=>n+Number(x.cancelledNights||0),0),confirmed=historic(prev,building).nights;
+   b=(canceled+confirmed)>0?canceled/(canceled+confirmed):null;
+  }else{
+   a=metrics(month,building)[key];
+   b=detailMetric(historic(prev,building,day),key,prev,building);
+  }
+  if(a===null||b===null){node.textContent='Sin dato comparable';continue}
+  node.textContent=PENDING_RATE_KEYS.has(key)?('vs AA: '+((a-b)*100>=0?'+':'')+numeric((a-b)*100)+' p.p.'):('vs AA: '+(a-b>=0?'+':'')+percent((a-b)/b));
+ }
+}
+function computeHighlights(){
+ if(!payload)return[];
+ const building=$('building').value,month=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1);
+ if(!month)return[];
+ const rows=subset(),bullets=[];
+ const share=(key)=>{const totals={};for(const r of rows)totals[r[key]]=(totals[r[key]]||0)+r.gross;const total=rows.reduce((s,r)=>s+r.gross,0)||1;const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);return sorted.length?{name:sorted[0][0],pct:sorted[0][1]/total}:null};
+ if(!building){const top=share('building');if(top)bullets.push({text:`${top.name} lidera la producción con ${percent(top.pct)} del total del periodo.`,kind:'info'})}
+ const topChannel=share('channel');if(topChannel)bullets.push({text:`${topChannel.name} es el canal con más producción: ${percent(topChannel.pct)} del PVP.`,kind:'info'});
+ const prev=monthEarlier(month,-12),day=asOfDay(month);
+ if(hasHistory(prev,building)){
+  const now=current(month,building),before=historic(prev,building,day);
+  if(before.gross>0){const delta=(now.gross-before.gross)/before.gross;bullets.push({text:`Producción PVP ${delta>=0?'sube':'baja'} un ${percent(Math.abs(delta))} frente al mismo día del año anterior.`,kind:delta>=0?'good':'bad'})}
+  const leadNow=now.bookings?now.leadTotal/now.bookings:null,leadBefore=before.bookings?before.leadTotal/before.bookings:null;
+  if(leadNow!==null&&leadBefore>0){const d=(leadNow-leadBefore)/leadBefore;if(Math.abs(d)>=0.1)bullets.push({text:`La antelación media ${d>=0?'sube':'baja'} un ${percent(Math.abs(d))}: reservas ${d>=0?'con más':'de más última hora'} respecto al año anterior.`,kind:'info'})}
+ }
+ if(payload.meta.reconciliation_warnings>0)bullets.push({text:`${payload.meta.reconciliation_warnings} reserva(s) con el total PVP sin conciliar del todo con el CSV de servicios.`,kind:'warn'});
+ if(payload.meta.channel_coverage<payload.meta.reservations)bullets.push({text:`${payload.meta.reservations-payload.meta.channel_coverage} reserva(s) sin canal identificado.`,kind:'warn'});
+ const m=metrics(month,building);
+ if(m.occupancy!==null&&m.occupancy>1)bullets.push({text:'La ocupación estimada supera el 100 % — revisa el inventario de apartamentos y los bloqueos.',kind:'warn'});
+ return bullets.slice(0,6);
+}
+function renderHighlights(){
+ const holder=$('highlights');if(!holder)return;
+ const bullets=computeHighlights();
+ holder.innerHTML=bullets.length?`<h2>Lo más destacado</h2><ul class="highlights-list">${bullets.map(b=>`<li class="hl-${b.kind}">${safe(b.text)}</li>`).join('')}</ul><p class="note">Generado con reglas a partir de los datos cargados en este navegador; no es un resumen redactado por IA.</p>`:'';
+}
+const olderRender=render;render=function(){olderRender();renderPaceMonthly();compareCharts();renderMAT();annotateBaseCards();annotatePendingCards();renderHighlights()};
 })();
