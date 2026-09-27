@@ -33,7 +33,7 @@ function renderPace(){
   const priorBuildings=new Set(historical.rows.filter(x=>x.month===comparison.previous).map(x=>x.building));
   const portfolioNote=(!$('building').value&&[...currentBuildings].some(x=>!priorBuildings.has(x)))?' Aviso: la cartera actual contiene edificios que no figuran en el histórico anterior; el porcentaje agregado no es comparable a perímetro constante.':'';
   const lines=openMonth?[
-    [comparison.previous+' · CIERRE / META',money(comparison.priorFinal),'final'],
+    [comparison.previous+' · CIERRE',money(comparison.priorFinal),'final'],
     ['En cartera '+comparison.current+' · a '+comparison.day,money(current),'current'],
     [comparison.previous+' · a '+comparison.day,money(comparison.priorAtCut),'prior']
   ]:[
