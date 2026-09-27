@@ -23,13 +23,12 @@ function openDetail(key){
   $('detail').innerHTML=`<div class="summary-top"><div><div class="mini">ANÁLISIS EN DETALLE</div><h2>${safe(title)} · ${detailNumber(base,key)}</h2></div><button class="ghost" id="closeDetail" type="button">Cerrar</button></div>
     <p class="note">${base.length} reservas confirmadas con los filtros actuales. Elige cómo desglosarlas; todas las cifras se recalculan al cambiar la dimensión.</p>
     <label class="detail-label">Desglosar por <select id="detailDimension"><option value="month">Mes de llegada</option><option value="building">Edificio</option><option value="channel">Canal</option><option value="rate">Tarifa</option><option value="roomType">Tipo de habitación</option><option value="country">País</option></select></label>
-    <div id="detailYearComparison"></div><div id="detailBreakdown"></div><h3>Reservas incluidas</h3><div class="detail-scroll" id="detailRows"></div>`;
+    <div id="detailBreakdown"></div><h3>Reservas incluidas</h3><div class="detail-scroll" id="detailRows"></div>`;
   $('detail').classList.remove('hidden');
   $('closeDetail').onclick=()=>$('detail').classList.add('hidden');
   $('detailDimension').value=base.length&&new Set(base.map(x=>x.month)).size>1?'month':'building';
   $('detailDimension').onchange=()=>{selectedDetailGroup=null;renderDetailBreakdown(key)};
   renderDetailBreakdown(key);
-  window.BONAVISTA_COMPARISON?.renderDetail(key);
   $('detail').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function renderDetailBreakdown(key){
