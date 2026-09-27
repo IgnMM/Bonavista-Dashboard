@@ -1,6 +1,12 @@
 /* Historical comparison is optional and local. Do not put source exports in a public repository. */
 const BASELINE_KEY='bonavista-baseline-v1';
 let historical=window.BONAVISTA_BASELINE||JSON.parse(localStorage.getItem(BASELINE_KEY)||'null');
+function renderSimulatedBanner(){
+  const holder=document.getElementById('simulatedBanner');if(!holder)return;
+  const simulatedMonths=[...new Set((historical?.rows||[]).filter(x=>x.simulated).map(x=>x.month))].sort();
+  if(!simulatedMonths.length){holder.innerHTML='';return}
+  holder.innerHTML=`<b>⚠ Datos históricos inventados en esta pantalla</b><span>Los meses ${simulatedMonths[0]} a ${simulatedMonths.at(-1)} (edificio Tamarit en 2024-2025, y enero-agosto de 2026 en todos los edificios) son una simulación de prueba, no cifras reales de Bonavista. Hay que pedir a Pablo las exportaciones reales de esos periodos antes de usar estas cifras para nada. Esta carga de prueba es solo local en este navegador; nunca se sube a GitHub.</span>`;
+}
 function initBaseline(){
   $('asOfDate').addEventListener('change',()=>{if(payload){payload.meta.as_of=$('asOfDate').value;const month=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1);if(month)window.PORTFOLIO_ASOF[month]=$('asOfDate').value;render()}});
 }
@@ -75,5 +81,6 @@ function renderHistoricalTrends(){
   holder.innerHTML=`<h2>Producción mensual · ${years.join(' / ')}</h2><div class="history-legend">${years.map((y,i)=>`<span><i class="${['old','prior','current'][i]}"></i>${y}</span>`).join('')}</div><div class="history-chart">${labels.map((label,m)=>`<div class="history-month"><div class="history-bars">${years.map((y,i)=>`<div class="history-bar ${['old','prior','current'][i]}" style="height:${Math.max(0,160*series[i][m]/max)}px" title="${y}-${m+1}: ${money(series[i][m])}"></div>`).join('')}</div><span>${label}</span></div>`).join('')}</div><p class="note">La serie ${year} representa únicamente los meses presentes en las cargas actuales; los años anteriores reflejan el cierre final de reservas confirmadas.</p>`;
 }
 const originalRenderBaseline=render;
-render=function(){originalRenderBaseline();renderPace()};
+render=function(){originalRenderBaseline();renderPace();renderSimulatedBanner()};
+renderSimulatedBanner();
 initBaseline();
