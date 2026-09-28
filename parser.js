@@ -119,5 +119,7 @@ async function analyseFiles(bookFile,serviceFile){
   const all=[...bookings.values()], items=all.filter(b=>b.status.toLowerCase()==='confirmed');
   if (!items.length) throw Error('No hay reservas confirmadas en esta exportación');
   const fileDate=bookFile.name.match(/(20\d{2})-(\d{2})-(\d{2})/);
-  return {bookings:items,meta:{as_of:fileDate?`${fileDate[1]}-${fileDate[2]}-${fileDate[3]}`:new Date().toISOString().slice(0,10),reservations:items.length,excluded_reservations:all.length-items.length,service_lines:serviceLines,date_warnings:items.filter(b=>b.date_warning).length,reconciliation_warnings:items.filter(b=>Math.abs(b.reconciliation_delta)>0.02).length,status_counts:Object.fromEntries([...new Set(all.map(b=>b.status))].map(x=>[x,all.filter(b=>b.status===x).length])),channel_coverage:items.filter(b=>b.channel!=='Sin canal').length}};
+  const simulated=/SIMULAD/i.test(bookFile.name)||/SIMULAD/i.test(serviceFile.name);
+  if(simulated)for(const b of items)b.simulated=true;
+  return {bookings:items,meta:{as_of:fileDate?`${fileDate[1]}-${fileDate[2]}-${fileDate[3]}`:new Date().toISOString().slice(0,10),reservations:items.length,excluded_reservations:all.length-items.length,service_lines:serviceLines,date_warnings:items.filter(b=>b.date_warning).length,reconciliation_warnings:items.filter(b=>Math.abs(b.reconciliation_delta)>0.02).length,status_counts:Object.fromEntries([...new Set(all.map(b=>b.status))].map(x=>[x,all.filter(b=>b.status===x).length])),channel_coverage:items.filter(b=>b.channel!=='Sin canal').length,simulated}};
 }
