@@ -49,14 +49,34 @@ function renderMAT(){const target=$('rollingMAT');if(!target||!payload)return;if
  target.innerHTML=`<div class="summary-top"><div><div class="mini">TAM · ÚLTIMOS 12 MESES</div><h2>Cierre a ${safe(end)} frente al TAM anterior</h2></div><span class="mini">${safe(building||'Todos los edificios')}</span></div><div class="mat-grid">${cases.map(([label,fn,format])=>{const a=fn(now),b=fn(prev);return `<div class="mat-cell"><span>${safe(label)}</span><strong>${a===null?'—':safe(format(a))}</strong><small>Anterior: ${b===null?'—':safe(format(b))}${a!==null&&b!==null&&b!==0?' · '+safe(percent((a-b)/b)):' '}</small></div>`}).join('')}</div><div class="mat-curve-control"><label>Evolución TAM <select id="matMetric">${cases.map(([name],i)=>`<option value="${i}">${safe(name)}</option>`).join('')}</select></label></div><div id="matCurve"></div><p class="note">Ventanas: ${safe(monthEarlier(end,-11))}–${safe(end)} y ${safe(monthEarlier(end,-23))}–${safe(monthEarlier(end,-12))}. Si faltan meses de 2026, se muestra el último TAM completo disponible. Cada año puede tener distinto inventario; compara el mismo edificio para mantener el perímetro. *ADR estimado: alquiler menos descuento, IVA ${safe(model.vat||0)} %, dividido entre noches de reserva; pendiente de validación contable.</p>`;const picker=target.querySelector('#matMetric'),curve=target.querySelector('#matCurve');if(picker&&curve){const draw=()=>{const [name,fn,format]=cases[Number(picker.value)||0];curve.innerHTML=`<h3>${safe(name)} · evolución mensual del TAM</h3>`+matCurve(building,name,format,fn)};picker.addEventListener('change',draw);draw()}
 }
 function detailMetric(stats,key,month,building){if(!stats)return null;const units=building?[building]:[...new Set((historical?.rows||[]).filter(x=>x.month===month).map(x=>x.building))],available=units.reduce((n,b)=>n+(Number(model.units[b])||0)*new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate()-(Number(model.blocks?.[b])||0),0);const revenue=stats.rentalNet/(1+Number(model.vat||0)/100);const direct=new Set(String(model.direct||'').split(',').map(x=>x.trim().toLowerCase()));switch(key){case 'gross':return stats.gross;case 'count':return stats.bookings;case 'nights':return stats.nights;case 'stay':return stats.bookings?stats.nights/stats.bookings:null;case 'guests':return stats.guestsKnown?stats.guestsTotal/stats.guestsKnown:null;case 'lead':return stats.bookings?stats.leadTotal/stats.bookings:null;case 'direct':return stats.gross?Object.entries(stats.categories.channel).reduce((s,[name,value])=>s+(direct.has(name.toLowerCase())?value.gross:0),0)/stats.gross:null;case 'adr':return stats.nights?revenue/stats.nights:null;case 'occupancy':return available>0?stats.nights/available:null;case 'revpar':return available>0?revenue/available:null;default:return null}}
-let baseCompareMode='month';
-function ensureBaseCompareControl(){
- if($('baseCompareMode'))return;
- const cardsEl=$('cards');if(!cardsEl||!cardsEl.parentNode)return;
- const bar=document.createElement('div');bar.className='base-compare-control';
- bar.innerHTML='<label>Comparar vs año anterior <select id="baseCompareMode" title="Mes actual: el mes en curso a fecha de hoy frente al mismo mes y mismo día del año anterior. Acumulado año: meses ya cerrados de este año más lo que llevamos del actual, frente al mismo acumulado a fecha del año anterior."><option value="month">Mes actual (mismo día AA)</option><option value="year">Acumulado año (mismo día AA)</option></select></label>';
- cardsEl.parentNode.insertBefore(bar,cardsEl);
- $('baseCompareMode').addEventListener('change',()=>{baseCompareMode=$('baseCompareMode').value;annotateBaseCards()});
+window.PERIOD_MODE=window.PERIOD_MODE||'month';
+function periodMonths(){
+ const anchor=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1);
+ if(!anchor)return null;
+ const mode=window.PERIOD_MODE||'month',isOpen=anchor===reportCurrentMonth();
+ if(mode==='year'){const year=anchor.slice(0,4),upTo=Number(anchor.slice(5,7));return {months:Array.from({length:upTo},(_,i)=>year+'-'+String(i+1).padStart(2,'0')),anchor,isOpen,mode}}
+ if(mode==='tam'){const end=isOpen?monthEarlier(anchor,-1):anchor;return {months:Array.from({length:12},(_,i)=>monthEarlier(end,-(11-i))),anchor:end,isOpen:false,mode}}
+ return {months:[anchor],anchor,isOpen,mode};
+}
+window.periodMonths=periodMonths;
+const PERIOD_LABELS={month:'Mes',year:'Acumulado año',tam:'TAM · últimos 12 meses'};
+function ensurePeriodControl(){
+ if($('periodTabs'))return;
+ const filtersEl=document.querySelector('.filters');if(!filtersEl)return;
+ const bar=document.createElement('div');bar.className='period-control';bar.id='periodTabs';
+ bar.innerHTML='<div class="period-tabs" role="tablist">'+Object.entries(PERIOD_LABELS).map(([mode,label])=>`<button type="button" data-mode="${mode}">${safe(label)}</button>`).join('')+'</div><p class="note" id="periodLabel"></p>';
+ filtersEl.parentNode.insertBefore(bar,filtersEl.nextSibling);
+ bar.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{window.PERIOD_MODE=btn.dataset.mode;render()}));
+}
+function renderPeriodControl(){
+ ensurePeriodControl();
+ const mode=window.PERIOD_MODE||'month',p=periodMonths();
+ document.querySelectorAll('#periodTabs [data-mode]').forEach(btn=>btn.classList.toggle('active',btn.dataset.mode===mode));
+ const label=$('periodLabel');if(!label)return;
+ if(!p){label.textContent='';return}
+ const first=p.months[0],last=p.months.at(-1),range=p.months.length>1?`${first} a ${last}`:first;
+ const coverage=p.months.filter(m=>latest().some(x=>x.month===m)).length;
+ label.textContent=`${range} · ${coverage}/${p.months.length} meses con carga`+(p.isOpen?' · mes en curso, cifras a fecha de la última exportación':(mode!=='month'&&coverage<p.months.length?' · faltan meses por cargar':''));
 }
 function yearToDate(month,building,useHistoric,cutDay){
  const year=month.slice(0,4),upTo=Number(month.slice(5,7)),acc=empty(),monthsUsed=[];
@@ -69,23 +89,34 @@ function yearToDate(month,building,useHistoric,cutDay){
 const BASE_CARD_SPECS={gross:{now:x=>x.gross,fmt:amount},count:{now:x=>x.bookings,fmt:numeric},nights:{now:x=>x.nights,fmt:numeric},stay:{now:x=>x.bookings?x.nights/x.bookings:null,fmt:x=>numeric(x)+' noches'},guests:{now:x=>x.guestsKnown?x.guestsTotal/x.guestsKnown:null,fmt:numeric},lead:{now:x=>x.bookings?x.leadTotal/x.bookings:null,fmt:x=>numeric(x)+' días'}};
 function annotateBaseCards(){
  if(!payload)return;
- ensureBaseCompareControl();
- const control=$('baseCompareMode');if(control)control.value=baseCompareMode;
- const building=$('building').value,month=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1);
+ renderPeriodControl();
+ const building=$('building').value,mode=window.PERIOD_MODE||'month',p=periodMonths();
  const cards=[...document.querySelectorAll('#cards button.card')];
- if(!month)return;
+ if(!p)return;
  let now,before,label,coverageNote='';
- const day=asOfDay(month);
- if(baseCompareMode==='year'){
+ if(mode==='year'){
+  const month=p.anchor,day=asOfDay(month);
   const cur=yearToDate(month,building,false),prevYearMonth=String(Number(month.slice(0,4))-1)+month.slice(4),pr=yearToDate(prevYearMonth,building,true,day);
   now=cur.stats;before=(cur.monthsUsed.length&&pr.monthsUsed.length&&cur.monthsUsed.length===pr.monthsUsed.length)?pr.stats:null;label='acumulado '+month.slice(0,4)+' a día '+day+' vs '+(Number(month.slice(0,4))-1)+' mismo acumulado';
   if(!before&&cur.monthsUsed.length&&pr.monthsUsed.length)coverageNote=' (cobertura insuficiente: '+cur.monthsUsed.length+' vs '+pr.monthsUsed.length+' meses acumulados, no comparable)';
+ }else if(mode==='tam'){
+  const end=p.anchor,prevEnd=monthEarlier(end,-12);
+  now=trailing(end,building);before=trailing(prevEnd,building);
+  label='TAM '+monthEarlier(end,-11)+' a '+end+' vs '+monthEarlier(prevEnd,-11)+' a '+prevEnd;
+  if(now&&!before)coverageNote=' (sin ventana de 12 meses completa el año anterior)';
  }else{
-  const prev=monthEarlier(month,-12);now=current(month,building);before=hasHistory(prev,building)?historic(prev,building,day):null;label=month+' a día '+day+' vs '+prev+' mismo día';
+  const month=p.anchor,day=asOfDay(month),prev=monthEarlier(month,-12);
+  now=current(month,building);before=hasHistory(prev,building)?historic(prev,building,day):null;label=month+' a día '+day+' vs '+prev+' mismo día';
  }
  for(const card of cards){
   const match=card.getAttribute('onclick')?.match(/detail\('(\w+)'\)/),key=match?.[1],spec=BASE_CARD_SPECS[key];if(!spec)continue;
+  if(mode==='tam'){
+   const strong=card.querySelector('strong'),em=card.querySelector('em');
+   if(strong)strong.textContent=now?(spec.now(now)===null?'—':safe(spec.fmt(spec.now(now)))):'—';
+   if(em)em.textContent=now?'TAM móvil · cierra en '+p.anchor:'Faltan meses de los últimos 12 por cargar';
+  }
   let node=card.querySelector('.yoy');if(!node){node=document.createElement('small');node.className='yoy';card.appendChild(node)}
+  if(!now){node.textContent='TAM incompleto: faltan meses de los últimos 12 por cargar';continue}
   if(!before){node.textContent=coverageNote?'Sin comparar'+safe(coverageNote):'Sin comparación: importa el histórico agregado';continue}
   const a=spec.now(now),b=spec.now(before);
   node.textContent=(a===null||b===null||!b)?'Sin dato comparable ('+safe(label)+')':('vs AA: '+(a-b>=0?'+':'')+percent((a-b)/b));
@@ -158,22 +189,31 @@ function toplineTile(label,value,fmt,delta,ppMode){
 function renderTopline(){
  const holder=$('topline');if(!holder)return;
  if(!payload){holder.innerHTML='';return}
- const building=$('building').value,month=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1);
- if(!month){holder.innerHTML='';return}
+ const building=$('building').value,month=reportCurrentMonth();
+ const hasCurrent=latest().some(x=>x.month===month&&(!building||x.building===building));
+ const lastLoadedMonth=[...new Set(latest().map(x=>x.month))].sort().at(-1);
+ if(!hasCurrent){
+  holder.innerHTML=`<div class="mini">PULSO DEL MES · NO CAMBIA CON EL ANÁLISIS DE ABAJO</div><h2>${safe(month)} · ${safe(building||'Todos los edificios')}</h2><p class="note">Sin carga del mes en curso todavía${lastLoadedMonth?'; última carga disponible: '+safe(lastLoadedMonth):''}. Sube la exportación de ${safe(month)} con «Actualizar dashboard» para ver aquí el pulso del mes actual.</p>`;
+  return;
+ }
+ const asOf=window.PORTFOLIO_ASOF?.[month]||payload.meta.as_of;
  const day=asOfDay(month);
  const pvp=toplineMonthValue('gross',building,month,day);
  const pvpDelta=(pvp.now==null||pvp.before==null||!pvp.before)?null:(pvp.now-pvp.before)/pvp.before;
- const ytd=yearToDate(month,building,false),prevYearMonth=String(Number(month.slice(0,4))-1)+month.slice(4),ytdPrev=yearToDate(prevYearMonth,building,true,day);
- const ytdComparable=ytd.monthsUsed.length&&ytdPrev.monthsUsed.length&&ytd.monthsUsed.length===ytdPrev.monthsUsed.length;
- const ytdDelta=ytdComparable&&ytdPrev.stats.gross?(ytd.stats.gross-ytdPrev.stats.gross)/ytdPrev.stats.gross:null;
+ const prev=monthEarlier(month,-12),hasHist=hasHistory(prev,building);
+ const priorClose=hasHist?historic(prev,building).gross:null;
+ const progress=priorClose>0&&pvp.now!=null?Math.round(100*pvp.now/priorClose):null;
  const occ=toplineMonthValue('occupancy',building,month,day),occDelta=(occ.now==null||occ.before==null)?null:occ.now-occ.before;
  const adr=toplineMonthValue('adr',building,month,day),adrDelta=(adr.now==null||adr.before==null||!adr.before)?null:(adr.now-adr.before)/adr.before;
- holder.innerHTML=`<h2>Resumen del periodo</h2><div class="topline-grid">
-  ${toplineTile('Producción PVP · mes a día '+day,pvp.now,amount,pvpDelta)}
-  ${toplineTile('Producción PVP · acumulado '+month.slice(0,4),ytdComparable?ytd.stats.gross:null,amount,ytdComparable?ytdDelta:null)}
-  ${toplineTile('Ocupación · mes (estimada)',occ.now,percent,occDelta,true)}
-  ${toplineTile('ADR sin IVA · mes (estimado)',adr.now,amount,adrDelta)}
- </div><p class="note">Mes: comparado con el mismo día del año anterior. Acumulado: solo se calcula cuando el año actual y el anterior tienen cargado el mismo número de meses. Ocupación y ADR dependen de las hipótesis editables más abajo.</p>`;
+ const revpar=toplineMonthValue('revpar',building,month,day),revparDelta=(revpar.now==null||revpar.before==null||!revpar.before)?null:(revpar.now-revpar.before)/revpar.before;
+ holder.innerHTML=`<div class="summary-top"><div><div class="mini">PULSO DEL MES · NO CAMBIA CON EL ANÁLISIS DE ABAJO</div><h2>${safe(month)} · ${safe(building||'Todos los edificios')}</h2></div><span class="mini">Datos a ${safe(asOf?new Date(asOf).toLocaleDateString('es-ES'):'—')}</span></div>
+ ${priorClose?`<div class="pace-goal"><span>CIERRE ${safe(prev)} · REFERENCIA A ALCANZAR</span><strong>${safe(amount(priorClose))}</strong><div class="pace-goal-progress"><i style="width:${Math.min(100,Math.max(0,progress||0))}%"></i></div><small>${progress===null?'Sin referencia':safe(String(progress)+' % del cierre anterior')} · diferencia ${safe(amount((pvp.now||0)-priorClose))}</small></div>`:''}
+ <div class="topline-grid">
+  ${toplineTile('Producción PVP en cartera · día '+day,pvp.now,amount,pvpDelta)}
+  ${toplineTile('Ocupación estimada del mes',occ.now,percent,occDelta,true)}
+  ${toplineTile('ADR sin IVA (estimado)',adr.now,amount,adrDelta)}
+  ${toplineTile('RevPAR sin IVA (estimado)',revpar.now,amount,revparDelta)}
+ </div><p class="note">La cifra del año anterior al mismo día es una reconstrucción desde fecha de reserva y estado final; no recupera cancelaciones ni cambios de importe posteriores. Ocupación, ADR y RevPAR dependen de las hipótesis editables más abajo. El acumulado del año está en «Análisis del negocio», con Acumulado año.</p>`;
 }
 const olderRender=render;render=function(){olderRender();renderPaceMonthly();compareCharts();renderMAT();annotateBaseCards();annotatePendingCards();renderHighlights();renderTopline()};
 })();
