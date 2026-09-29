@@ -138,7 +138,7 @@ function renderKpi(){
  if(!ps){holder.innerHTML='';return}
  const mode=ps.p.mode,isCurrentMonth=mode==='month'&&ps.p.months[0]===reportCurrentMonth();
  const specs=isCurrentMonth?KPI_SPECS.filter(s=>s[4]!=='primary'):KPI_SPECS;
- const skipNote=isCurrentMonth?'<p class="note">Producción, ocupación, ADR y RevPAR del mes en curso están en el Pulso, arriba.</p>':'';
+ const skipNote=isCurrentMonth?'<p class="note">Producción, ocupación, ADR y RevPAR del mes en curso están en «Así va el mes», arriba.</p>':'';
  holder.innerHTML=skipNote+specs.map(([key,label,fmt,caption,tier])=>{
   let now,before,deltaText;
   if(key==='cancel'){
@@ -172,7 +172,8 @@ function computeHighlights(){
  if(payload.meta.channel_coverage<payload.meta.reservations)bullets.push({text:`${payload.meta.reservations-payload.meta.channel_coverage} reserva(s) sin canal identificado.`,kind:'warn'});
  const m=metrics(month,building);
  if(m.occupancy!==null&&m.occupancy>1)bullets.push({text:'La ocupación estimada supera el 100 % — revisa el inventario de apartamentos y los bloqueos.',kind:'warn'});
- return bullets.slice(0,6);
+ const priority={warn:0,bad:1,good:2,info:3};
+ return bullets.sort((a,b)=>priority[a.kind]-priority[b.kind]).slice(0,3);
 }
 function renderHighlights(){
  const holder=$('highlights');if(!holder)return;
@@ -200,7 +201,7 @@ function renderTopline(){
  const hasCurrent=latest().some(x=>x.month===month&&(!building||x.building===building));
  const lastLoadedMonth=[...new Set(latest().map(x=>x.month))].sort().at(-1);
  if(!hasCurrent){
-  holder.innerHTML=`<div class="mini">PULSO DEL MES</div><h2>${safe(month)} · ${safe(building||'Todos los edificios')}</h2><p class="note">Sin carga del mes en curso todavía${lastLoadedMonth?'; última carga disponible: '+safe(lastLoadedMonth):''}. Sube la exportación de ${safe(month)} con «Actualizar dashboard» para ver aquí el pulso del mes actual.</p>`;
+  holder.innerHTML=`<h2>${safe(month)} · ${safe(building||'Todos los edificios')}</h2><p class="note">Sin carga del mes en curso todavía${lastLoadedMonth?'; última carga disponible: '+safe(lastLoadedMonth):''}. Sube la exportación de ${safe(month)} en «Datos y ajustes» para ver aquí cómo va el mes actual.</p>`;
   return;
  }
  const asOf=window.PORTFOLIO_ASOF?.[month]||payload.meta.as_of;
@@ -213,14 +214,14 @@ function renderTopline(){
  const occ=toplineMonthValue('occupancy',building,month,day),occDelta=(occ.now==null||occ.before==null)?null:occ.now-occ.before;
  const adr=toplineMonthValue('adr',building,month,day),adrDelta=(adr.now==null||adr.before==null||!adr.before)?null:(adr.now-adr.before)/adr.before;
  const revpar=toplineMonthValue('revpar',building,month,day),revparDelta=(revpar.now==null||revpar.before==null||!revpar.before)?null:(revpar.now-revpar.before)/revpar.before;
- holder.innerHTML=`<div class="summary-top"><div><div class="mini">PULSO DEL MES</div><h2>${safe(month)} · ${safe(building||'Todos los edificios')}</h2></div><span class="mini">Datos a ${safe(asOf?new Date(asOf).toLocaleDateString('es-ES'):'—')}</span></div>
+ holder.innerHTML=`<div class="summary-top"><h2>${safe(month)} · ${safe(building||'Todos los edificios')}</h2><span class="mini">Datos a ${safe(asOf?new Date(asOf).toLocaleDateString('es-ES'):'—')}</span></div>
  ${priorClose?`<div class="pace-goal"><span>CIERRE ${safe(prev)} · REFERENCIA A ALCANZAR</span><strong>${safe(amount(priorClose))}</strong><div class="pace-goal-progress"><i style="width:${Math.min(100,Math.max(0,progress||0))}%"></i></div><small>${progress===null?'Sin referencia':safe(String(progress)+' % del cierre anterior')} · diferencia ${safe(amount((pvp.now||0)-priorClose))}</small></div>`:''}
  <div class="topline-grid">
   ${toplineTile('Producción PVP en cartera · día '+day,pvp.now,amount,pvpDelta)}
   ${toplineTile('Ocupación estimada del mes',occ.now,percent,occDelta,true)}
   ${toplineTile('ADR sin IVA (estimado)',adr.now,amount,adrDelta)}
   ${toplineTile('RevPAR sin IVA (estimado)',revpar.now,amount,revparDelta)}
- </div><p class="note">La cifra del año anterior al mismo día es una reconstrucción desde fecha de reserva y estado final; no recupera cancelaciones ni cambios de importe posteriores. Ocupación, ADR y RevPAR dependen de las hipótesis editables más abajo. El acumulado del año está en «Análisis del negocio», con Acumulado año.</p>`;
+ </div><p class="note">La cifra del año anterior al mismo día es una reconstrucción desde fecha de reserva y estado final; no recupera cancelaciones ni cambios de importe posteriores. Ocupación, ADR y RevPAR dependen de las hipótesis editables más abajo. El acumulado del año está en el bloque «Evolución», con Acumulado año.</p>`;
 }
 const olderRender=render;render=function(){olderRender();renderPaceMonthly();compareCharts();renderMAT();renderKpi();renderHighlights();renderTopline()};
 })();
