@@ -18,25 +18,26 @@ function detailNumber(rows,key){
 let selectedDetailGroup=null;
 function openDetail(key){
   selectedDetailGroup=null;
-  const labels={gross:'Producción PVP',count:'Reservas',nights:'Noches reservadas',stay:'Estancia media',guests:'Ocupantes medios',lead:'Antelación de reserva',direct:'Venta directa',occupancy:'Ocupación',adr:'ADR',revpar:'RevPAR',cancel:'Cancelaciones',pickup:'Pickup'};
+  const labels={gross:'Ventas PVP',count:'Reservas',nights:'Noches reservadas',stay:'Estancia media',guests:'Ocupantes medios',lead:'Antelación de reserva',direct:'Venta directa',occupancy:'Ocupación',adr:'ADR',revpar:'RevPAR',cancel:'Cancelaciones',pickup:'Pickup'};
   const base=subset(), title=labels[key]||'Indicador';
-  $('detail').innerHTML=`<div class="summary-top"><div><div class="mini">ANÁLISIS EN DETALLE</div><h2>${safe(title)} · ${detailNumber(base,key)}</h2></div><button class="ghost" id="closeDetail" type="button">Cerrar</button></div>
+  const p=window.periodMonths?.(),building=$('building').value;
+  const modeLabels={month:'Mes',year:'Acumulado año',tam:'TAM'};
+  const contextText=[building||'Todos los edificios',p?modeLabels[p.mode]+' · '+p.anchor:'',$('asOfDate')?.value?'Corte: '+$('asOfDate').value:''].filter(Boolean).join(' · ');
+  $('detail').innerHTML=`<div class="summary-top"><div><div class="mini">ANÁLISIS EN DETALLE</div><h2>${safe(title)} · ${detailNumber(base,key)}</h2><p class="note">${safe(contextText)}</p></div></div>
     <p class="note">${base.length} reservas confirmadas con los filtros actuales. Elige cómo desglosarlas; todas las cifras se recalculan al cambiar la dimensión.</p>
     <label class="detail-label">Desglosar por <select id="detailDimension"><option value="month">Mes de llegada</option><option value="building">Edificio</option><option value="channel">Canal</option><option value="rate">Tarifa</option><option value="roomType">Tipo de habitación</option><option value="country">País</option></select></label>
     <div id="detailBreakdown"></div><h3>Reservas incluidas</h3><div class="detail-scroll" id="detailRows"></div>`;
-  $('detail').classList.remove('hidden');
-  $('closeDetail').onclick=()=>$('detail').classList.add('hidden');
+  $('detailOverlay').classList.remove('hidden');
   $('detailDimension').value=base.length&&new Set(base.map(x=>x.month)).size>1?'month':'building';
   $('detailDimension').onchange=()=>{selectedDetailGroup=null;renderDetailBreakdown(key)};
   renderDetailBreakdown(key);
-  $('detail').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function renderDetailBreakdown(key){
   const rows=subset(),dimension=$('detailDimension').value;
   const groups={};for(const item of rows)(groups[item[dimension]]??=[]).push(item);
   const sorted=Object.entries(groups).sort((a,b)=>dimension==='month'?a[0].localeCompare(b[0]):b[1].reduce((s,x)=>s+x.gross,0)-a[1].reduce((s,x)=>s+x.gross,0));
   const total=rows.reduce((s,x)=>s+x.gross,0)||1;
-  $('detailBreakdown').innerHTML=`<p class="note">Selecciona una fila para ver únicamente sus reservas; el desglose también agrupa la lista inferior.</p><table class="detail-table"><thead><tr><th>${safe(dimension)}</th><th>Valor del indicador</th><th>Reservas</th><th>Producción PVP</th><th>Mix ventas</th></tr></thead><tbody>${sorted.map(([label,group])=>{
+  $('detailBreakdown').innerHTML=`<p class="note">Selecciona una fila para ver únicamente sus reservas; el desglose también agrupa la lista inferior.</p><table class="detail-table"><thead><tr><th>${safe(dimension)}</th><th>Valor del indicador</th><th>Reservas</th><th>Ventas PVP</th><th>Mix ventas</th></tr></thead><tbody>${sorted.map(([label,group])=>{
     const p=group.reduce((s,x)=>s+x.gross,0);
     let shown=detailNumber(group,key);
     if(['occupancy','adr','revpar'].includes(key)){

@@ -14,7 +14,7 @@ const percent=v=>new Intl.NumberFormat('es-ES',{style:'percent',maximumFractionD
 function monthEarlier(month,delta){const [y,m]=month.split('-').map(Number),d=new Date(Date.UTC(y,m-1+delta,1));return d.toISOString().slice(0,7)}
 function reportCurrentMonth(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit'}).format(new Date())}
 function asOfDay(month){const iso=window.PORTFOLIO_ASOF?.[month]||payload?.meta?.as_of||new Date().toISOString().slice(0,10);return Math.max(1,Math.min(31,Number(iso.slice(8,10))||1))}
-function bars(title,entries,formatter=amount){const rows=entries.slice(0,title.startsWith('Producción por día')?31:title.startsWith('Producción PVP mensual')?12:10),max=Math.max(1,...rows.flatMap(x=>x.values).filter(x=>x!==null).map(x=>x||0));return `<div class="panel comparison-card ${title.startsWith('Producción por día')?'daily-comparison':''}"><h2>${safe(title)}</h2>${rows.length?`<div class="comparison-head"><span></span><span>Actual</span><span>Año ant. a fecha</span><span>Año ant. cierre</span></div>${rows.map(({label,values})=>`<div class="comparison-row"><b title="${safe(label)}">${safe(label)}</b>${values.map((v,i)=>`<span title="${safe(label)} · ${['Actual','Año anterior a fecha','Año anterior cierre'][i]}: ${v===null?'sin dato':safe(formatter(v))}"><em class="cmp-track"><i class="cmp-fill cmp-${i}" style="width:${v===null?0:Math.max(1,v/max*100)}%"></i></em><strong>${v===null?'—':safe(formatter(v))}</strong></span>`).join('')}</div>`).join('')}`:'<p class="note">Sin datos para este gráfico.</p>'}</div>`}
+function bars(title,entries,formatter=amount){const rows=entries.slice(0,title.startsWith('Producción por día')?31:title.startsWith('Ventas PVP mensual')?12:10),max=Math.max(1,...rows.flatMap(x=>x.values).filter(x=>x!==null).map(x=>x||0));return `<div class="panel comparison-card ${title.startsWith('Producción por día')?'daily-comparison':''}"><h2>${safe(title)}</h2>${rows.length?`<div class="comparison-head"><span></span><span>Actual</span><span>Año ant. a fecha</span><span>Año ant. cierre</span></div>${rows.map(({label,values})=>`<div class="comparison-row"><b title="${safe(label)}">${safe(label)}</b>${values.map((v,i)=>`<span title="${safe(label)} · ${['Actual','Año anterior a fecha','Año anterior cierre'][i]}: ${v===null?'sin dato':safe(formatter(v))}"><em class="cmp-track"><i class="cmp-fill cmp-${i}" style="width:${v===null?0:Math.max(1,v/max*100)}%"></i></em><strong>${v===null?'—':safe(formatter(v))}</strong></span>`).join('')}</div>`).join('')}`:'<p class="note">Sin datos para este gráfico.</p>'}</div>`}
 function compareCharts(){
  if(!payload)return;
  const building=$('building').value,ps=periodStats(building);
@@ -29,11 +29,11 @@ function compareCharts(){
  const arrivals=series('arrival','gross').map(x=>({label:x.label,values:x.values})).sort((a,b)=>Number(a.label)-Number(b.label));
  const cancelPrior=p.prevMonths.reduce((s,m)=>s+historical.rows.filter(x=>x.month===m&&(!building||x.building===building)).reduce((n,x)=>n+Number(x.cancelledNights||0),0),0);
  const canceled=(mode==='month'&&openMonth&&model.cancelled!==null)?Number(model.cancelled):null;
- $('charts').innerHTML=[bars('Producción PVP mensual · '+anchorMonth.slice(0,4)+' (contexto, no sigue el selector)',months,amount),bars('Producción por día de llegada · '+periodLabel,arrivals,amount),bars('Canales · PVP',series('channel','gross'),amount),bars('Estancia · reservas',series('stay','count'),numeric),bars('Ocupantes · reservas',series('guests','count'),numeric),bars('Países · % reservas',series('country','count',true),v=>numeric(v)+' %'),bars('Tarifas · PVP',series('rate','gross'),amount),bars('Antelación · reservas',series('lead','count'),numeric),bars('Noches por edificio · '+p.anchor+' (contexto, no sigue el selector)',[...new Set([...latest().filter(x=>x.month===p.anchor).map(x=>x.building),...historical.rows.filter(x=>x.month===monthEarlier(p.anchor,-12)).map(x=>x.building)])].filter(x=>!building||x===building).map(name=>({label:name.replace('Bonavista ',''),values:[current(p.anchor,name).nights,openMonth?historic(monthEarlier(p.anchor,-12),name,asOfDay(p.anchor)).nights:null,historic(monthEarlier(p.anchor,-12),name).nights]})),numeric),bars('Cancelaciones · noches',[{label:'Canceladas',values:[canceled,null,cancelPrior]},{label:'Confirmadas',values:[now.nights,cut?.nights??null,prior?.nights??null]}],numeric)].join('')+`<p class="note comparison-foot">${safe(periodLabel)} frente a ${safe(prevLabel)}. Los dos primeros gráficos son siempre de contexto anual, independientes del selector Mes/Acumulado/TAM; el resto sigue el periodo elegido arriba. Solo el mes en curso usa una comparación al mismo día; en Acumulado año y TAM se compara el cierre completo del periodo equivalente del año anterior. Las series del año actual proceden de las cargas presentes. Cancelaciones actuales: ${canceled===null?'sin exportación o solo disponible en modo Mes':'hipótesis editable'}. Los países representan porcentaje de reservas.</p>`;
+ $('charts').innerHTML=[bars('Ventas PVP mensual · '+anchorMonth.slice(0,4)+' (contexto, no sigue el selector)',months,amount),bars('Producción por día de llegada · '+periodLabel,arrivals,amount),bars('Canales · PVP',series('channel','gross'),amount),bars('Estancia · reservas',series('stay','count'),numeric),bars('Ocupantes · reservas',series('guests','count'),numeric),bars('Países · % reservas',series('country','count',true),v=>numeric(v)+' %'),bars('Tarifas · PVP',series('rate','gross'),amount),bars('Antelación · reservas',series('lead','count'),numeric),bars('Noches por edificio · '+p.anchor+' (contexto, no sigue el selector)',[...new Set([...latest().filter(x=>x.month===p.anchor).map(x=>x.building),...historical.rows.filter(x=>x.month===monthEarlier(p.anchor,-12)).map(x=>x.building)])].filter(x=>!building||x===building).map(name=>({label:name.replace('Bonavista ',''),values:[current(p.anchor,name).nights,openMonth?historic(monthEarlier(p.anchor,-12),name,asOfDay(p.anchor)).nights:null,historic(monthEarlier(p.anchor,-12),name).nights]})),numeric),bars('Cancelaciones · noches',[{label:'Canceladas',values:[canceled,null,cancelPrior]},{label:'Confirmadas',values:[now.nights,cut?.nights??null,prior?.nights??null]}],numeric)].join('')+`<p class="note comparison-foot">${safe(periodLabel)} frente a ${safe(prevLabel)}. Los dos primeros gráficos son siempre de contexto anual, independientes del selector Mes/Acumulado/TAM; el resto sigue el periodo elegido arriba. Solo el mes en curso usa una comparación al mismo día; en Acumulado año y TAM se compara el cierre completo del periodo equivalente del año anterior. Las series del año actual proceden de las cargas presentes. Cancelaciones actuales: ${canceled===null?'sin exportación o solo disponible en modo Mes':'hipótesis editable'}. Los países representan porcentaje de reservas.</p>`;
 }
 function completeMonth(month,building){if(month>=reportCurrentMonth())return null;if(latest().some(x=>x.month===month&&(!building||x.building===building)))return current(month,building);return hasHistory(month,building)?historic(month,building):null}
 function trailing(end,building){const a=empty();for(let i=11;i>=0;i--){const one=completeMonth(monthEarlier(end,-i),building);if(!one)return null;add(a,one)}return a}
-const PACE_KEYS=[['gross','Producción PVP',v=>amount(v)],['nights','Noches reservadas',v=>numeric(v)],['count','Reservas',v=>numeric(v)],['stay','Estancia media',v=>numeric(v)+' noches'],['guests','Ocupantes medios',v=>numeric(v)],['lead','Antelación',v=>numeric(v)+' días'],['direct','Venta directa',v=>percent(v)],['occupancy','Ocupación',v=>percent(v)],['adr','ADR sin IVA',v=>amount(v)],['revpar','RevPAR sin IVA',v=>amount(v)],['cancel','Cancelaciones',v=>percent(v)]];
+const PACE_KEYS=[['gross','Ventas PVP',v=>amount(v)],['nights','Noches reservadas',v=>numeric(v)],['count','Reservas',v=>numeric(v)],['stay','Estancia media',v=>numeric(v)+' noches'],['guests','Ocupantes medios',v=>numeric(v)],['lead','Antelación',v=>numeric(v)+' días'],['direct','Venta directa',v=>percent(v)],['occupancy','Ocupación',v=>percent(v)],['adr','ADR sin IVA',v=>amount(v)],['revpar','RevPAR sin IVA',v=>amount(v)],['cancel','Cancelaciones',v=>percent(v)]];
 const PACE_RATIO_KEYS=new Set(['direct','occupancy','cancel']);
 function monthlyValue(m,building,key){
  const prev=monthEarlier(m,-12),loaded=latest().some(x=>x.month===m&&(!building||x.building===building)),hasHist=hasHistory(prev,building),date=asOfDay(m);
@@ -99,7 +99,7 @@ function renderEvolutionMain(){
  else renderMAT();
 }
 function matCurve(building,metric,format,fn){const months=[...new Set([...(historical?.rows||[]).map(x=>x.month),...latest().map(x=>x.month)])].sort(),points=months.map(month=>({month,stats:trailing(month,building)})).filter(x=>x.stats).slice(-24),values=points.map(x=>fn(x.stats)),max=Math.max(1,...values.filter(x=>x!==null));return `<div class="mat-curve">${points.map(({month},i)=>{const v=values[i];return `<div class="mat-point" title="${safe(month)}: ${v===null?'sin dato':safe(format(v))}"><strong>${v===null?'—':safe(format(v))}</strong><div class="mat-track"><i style="height:${v===null?0:Math.max(2,v/max*88)}px"></i></div><span>${safe(month)}</span></div>`}).join('')}</div><p class="note">Cada barra agrega los 12 meses anteriores hasta el mes indicado. No se trazan periodos que carezcan de alguno de sus 12 meses.</p>`}
-function renderMAT(){const target=$('rollingMAT');if(!target||!payload)return;if(!historical?.rows?.some(x=>x.analysis)){target.innerHTML='<p class="note">Importa el histórico analítico para calcular los últimos 12 meses completos.</p>';return}const building=$('building').value,months=[...new Set([...(historical.rows||[]).map(x=>x.month),...latest().map(x=>x.month)])].sort().reverse();let end,now,prev;for(const m of months){const a=trailing(m,building),b=trailing(monthEarlier(m,-12),building);if(a&&b){end=m;now=a;prev=b;break}}if(!end){target.innerHTML='<p class="note">Todavía no hay dos ventanas consecutivas de 12 meses con datos para comparar.</p>';return}const direct=new Set(String(model.direct||'').split(',').map(x=>x.trim().toLowerCase()));const share=x=>x.gross?Object.entries(x.categories.channel).reduce((n,[key,v])=>n+(direct.has(key.toLowerCase())?v.gross:0),0)/x.gross:null;const cases=[['Producción PVP',x=>x.gross,amount],['Noches reservadas',x=>x.nights,numeric],['Reservas',x=>x.bookings,numeric],['Estancia media',x=>x.bookings?x.nights/x.bookings:null,x=>numeric(x)+' noches'],['Ocupantes medios',x=>x.guestsKnown?x.guestsTotal/x.guestsKnown:null,numeric],['Antelación',x=>x.bookings?x.leadTotal/x.bookings:null,x=>numeric(x)+' días'],['Venta directa',share,percent],['ADR alquiler sin IVA*',x=>x.nights?x.rentalNet/(1+Number(model.vat||0)/100)/x.nights:null,amount]];
+function renderMAT(){const target=$('rollingMAT');if(!target||!payload)return;if(!historical?.rows?.some(x=>x.analysis)){target.innerHTML='<p class="note">Importa el histórico analítico para calcular los últimos 12 meses completos.</p>';return}const building=$('building').value,months=[...new Set([...(historical.rows||[]).map(x=>x.month),...latest().map(x=>x.month)])].sort().reverse();let end,now,prev;for(const m of months){const a=trailing(m,building),b=trailing(monthEarlier(m,-12),building);if(a&&b){end=m;now=a;prev=b;break}}if(!end){target.innerHTML='<p class="note">Todavía no hay dos ventanas consecutivas de 12 meses con datos para comparar.</p>';return}const direct=new Set(String(model.direct||'').split(',').map(x=>x.trim().toLowerCase()));const share=x=>x.gross?Object.entries(x.categories.channel).reduce((n,[key,v])=>n+(direct.has(key.toLowerCase())?v.gross:0),0)/x.gross:null;const cases=[['Ventas PVP',x=>x.gross,amount],['Noches reservadas',x=>x.nights,numeric],['Reservas',x=>x.bookings,numeric],['Estancia media',x=>x.bookings?x.nights/x.bookings:null,x=>numeric(x)+' noches'],['Ocupantes medios',x=>x.guestsKnown?x.guestsTotal/x.guestsKnown:null,numeric],['Antelación',x=>x.bookings?x.leadTotal/x.bookings:null,x=>numeric(x)+' días'],['Venta directa',share,percent],['ADR alquiler sin IVA*',x=>x.nights?x.rentalNet/(1+Number(model.vat||0)/100)/x.nights:null,amount]];
  target.innerHTML=`<div class="summary-top"><div><div class="mini">TAM · ÚLTIMOS 12 MESES</div><h2>Cierre a ${safe(end)} frente al TAM anterior</h2></div><span class="mini">${safe(building||'Todos los edificios')}</span></div><div class="mat-grid">${cases.map(([label,fn,format])=>{const a=fn(now),b=fn(prev);return `<div class="mat-cell"><span>${safe(label)}</span><strong>${a===null?'—':safe(format(a))}</strong><small>Anterior: ${b===null?'—':safe(format(b))}${a!==null&&b!==null&&b!==0?' · '+safe(percent((a-b)/b)):' '}</small></div>`}).join('')}</div><div class="mat-curve-control"><label>Evolución TAM <select id="matMetric">${cases.map(([name],i)=>`<option value="${i}">${safe(name)}</option>`).join('')}</select></label></div><div id="matCurve"></div><p class="note">Ventanas: ${safe(monthEarlier(end,-11))}–${safe(end)} y ${safe(monthEarlier(end,-23))}–${safe(monthEarlier(end,-12))}. Si faltan meses de 2026, se muestra el último TAM completo disponible. Cada año puede tener distinto inventario; compara el mismo edificio para mantener el perímetro. *ADR estimado: alquiler menos descuento, IVA ${safe(model.vat||0)} %, dividido entre noches de reserva; pendiente de validación contable.</p>`;const picker=target.querySelector('#matMetric'),curve=target.querySelector('#matCurve');if(picker&&curve){const draw=()=>{const [name,fn,format]=cases[Number(picker.value)||0];curve.innerHTML=`<h3>${safe(name)} · evolución mensual del TAM</h3>`+matCurve(building,name,format,fn)};picker.addEventListener('change',draw);draw()}
 }
 function monthBuildings(month){return new Set([...latest().filter(x=>x.month===month).map(x=>x.building),...(historical?.rows||[]).filter(x=>x.month===month).map(x=>x.building)])}
@@ -159,17 +159,11 @@ function yearToDate(month,building,useHistoric,cutDay){
  return {stats:acc,monthsUsed};
 }
 const KPI_SPECS=[
- ['gross','Producción PVP',amount,'Incluye todos los conceptos','primary'],
- ['occupancy','Ocupación',percent,'Estimada · depende del inventario y bloqueos','primary'],
- ['adr','ADR sin IVA',amount,'Estimado · alquiler menos descuento','primary'],
- ['revpar','RevPAR sin IVA',amount,'Estimado · alquiler / noches disponibles','primary'],
- ['count','Reservas',numeric,'Confirmadas en la selección','secondary'],
- ['nights','Noches reservadas',numeric,'No equivale a ocupación','secondary'],
- ['direct','Venta directa',percent,'Canales editables abajo','secondary'],
- ['cancel','Cancelaciones',percent,'Noches canceladas / total','secondary'],
- ['stay','Estancia media',v=>numeric(v)+' noches','Por reserva','tertiary'],
- ['guests','Ocupantes medios',numeric,'Por reserva con dato','tertiary'],
- ['lead','Antelación media',v=>numeric(v)+' días','Reserva → llegada','tertiary'],
+ ['count','Reservas',numeric,'Confirmadas en la selección'],
+ ['nights','Noches reservadas',numeric,'No equivale a ocupación'],
+ ['stay','Estancia media',v=>numeric(v)+' noches','Por reserva'],
+ ['guests','Ocupantes medios',numeric,'Por reserva con dato'],
+ ['lead','Antelación media',v=>numeric(v)+' días','Reserva → llegada'],
 ];
 function periodStats(building){
  const p=periodMonths();if(!p)return null;
@@ -191,21 +185,12 @@ function renderKpi(){
  renderPeriodControl();
  const building=$('building').value,ps=periodStats(building);
  if(!ps){holder.innerHTML='';return}
- const mode=ps.p.mode,isCurrentMonth=mode==='month'&&ps.p.months[0]===reportCurrentMonth();
- const specs=isCurrentMonth?KPI_SPECS.filter(s=>s[4]!=='primary'):KPI_SPECS;
- const skipNote=isCurrentMonth?'<p class="note">Producción, ocupación, ADR y RevPAR del mes en curso están en «Así va el mes», arriba.</p>':'';
- holder.innerHTML=skipNote+specs.map(([key,label,fmt,caption,tier])=>{
-  let now,before,deltaText;
-  if(key==='cancel'){
-   now=(mode==='month'&&ps.p.months[0]===reportCurrentMonth()&&model.cancelled!==null)?Number(model.cancelled)/(Number(model.cancelled)+(ps.now?.nights||0)||1):null;
-   deltaText=now===null?'Sin exportación de canceladas':'Hipótesis editable';
-  }else{
-   now=ps.now?detailMetric(ps.now,key,ps.p.months,building):null;
-   before=ps.before?detailMetric(ps.before,key,ps.p.prevMonths,building):null;
-   const delta=(now===null||before===null||!before)?null:(now-before)/before;
-   deltaText=delta===null?(ps.now?('Sin comparación'+safe(ps.coverageNote)):'Sin datos para este periodo'):('vs AA: '+(delta>=0?'+':'')+percent(delta));
-  }
-  return `<button class="card kpi-${tier}" onclick="detail('${key}')"><span>${safe(label)}</span><strong>${now===null?'—':safe(fmt(now))}</strong><em>${safe(caption)}</em><small class="yoy">${safe(deltaText)}</small></button>`;
+ holder.innerHTML=KPI_SPECS.map(([key,label,fmt,caption])=>{
+  const now=ps.now?detailMetric(ps.now,key,ps.p.months,building):null;
+  const before=ps.before?detailMetric(ps.before,key,ps.p.prevMonths,building):null;
+  const delta=(now===null||before===null||!before)?null:(now-before)/before;
+  const deltaText=delta===null?(ps.now?('Sin comparación'+safe(ps.coverageNote)):'Sin datos para este periodo'):('vs AA: '+(delta>=0?'+':'')+percent(delta));
+  return `<button class="card" onclick="detail('${key}')"><span>${safe(label)}</span><strong>${now===null?'—':safe(fmt(now))}</strong><em>${safe(caption)}</em><small class="yoy">${safe(deltaText)}</small></button>`;
  }).join('');
 }
 function computeHighlights(){
@@ -219,7 +204,7 @@ function computeHighlights(){
  const prev=monthEarlier(month,-12),day=asOfDay(month);
  if(hasHistory(prev,building)){
   const now=current(month,building),before=historic(prev,building,day);
-  if(before.gross>0){const delta=(now.gross-before.gross)/before.gross;bullets.push({text:`Producción PVP ${delta>=0?'sube':'baja'} un ${percent(Math.abs(delta))} frente al mismo día del año anterior.`,kind:delta>=0?'good':'bad'})}
+  if(before.gross>0){const delta=(now.gross-before.gross)/before.gross;bullets.push({text:`Ventas PVP ${delta>=0?'sube':'baja'} un ${percent(Math.abs(delta))} frente al mismo día del año anterior.`,kind:delta>=0?'good':'bad'})}
   const leadNow=now.bookings?now.leadTotal/now.bookings:null,leadBefore=before.bookings?before.leadTotal/before.bookings:null;
   if(leadNow!==null&&leadBefore>0){const d=(leadNow-leadBefore)/leadBefore;if(Math.abs(d)>=0.1)bullets.push({text:`La antelación media ${d>=0?'sube':'baja'} un ${percent(Math.abs(d))}: reservas ${d>=0?'con más':'de más última hora'} respecto al año anterior.`,kind:'info'})}
  }
@@ -272,7 +257,7 @@ function renderTopline(){
  holder.innerHTML=`<div class="summary-top"><h2>${safe(month)} · ${safe(building||'Todos los edificios')}</h2><span class="mini">Datos a ${safe(asOf?new Date(asOf).toLocaleDateString('es-ES'):'—')}</span></div>
  ${priorClose?`<div class="pace-goal"><span>CIERRE ${safe(prev)} · REFERENCIA A ALCANZAR</span><strong>${safe(amount(priorClose))}</strong><div class="pace-goal-progress"><i style="width:${Math.min(100,Math.max(0,progress||0))}%"></i></div><small>${progress===null?'Sin referencia':safe(String(progress)+' % del cierre anterior')} · diferencia ${safe(amount((pvp.now||0)-priorClose))}</small></div>`:''}
  <div class="topline-grid">
-  ${toplineTile('Producción PVP en cartera · día '+day,pvp.now,amount,pvpDelta)}
+  ${toplineTile('Ventas PVP en cartera · día '+day,pvp.now,amount,pvpDelta)}
   ${toplineTile('Ocupación estimada del mes',occ.now,percent,occDelta,true)}
   ${toplineTile('ADR sin IVA (estimado)',adr.now,amount,adrDelta)}
   ${toplineTile('RevPAR sin IVA (estimado)',revpar.now,amount,revparDelta)}

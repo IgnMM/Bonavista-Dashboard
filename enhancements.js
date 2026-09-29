@@ -76,7 +76,7 @@ function showCharts(rows){
   const stayBuckets={'1–2 noches':0,'3–4 noches':0,'5–7 noches':0,'8+ noches':0};
   for(const x of rows){leadBuckets[x.lead<=7?'0–7 días':x.lead<=30?'8–30 días':x.lead<=90?'31–90 días':'Más de 90 días']++;stayBuckets[x.nights<=2?'1–2 noches':x.nights<=4?'3–4 noches':x.nights<=7?'5–7 noches':'8+ noches']++}
   const values=[
-   chart('Producción PVP por mes',tally('month',x=>x.gross),money,true),
+   chart('Ventas PVP por mes',tally('month',x=>x.gross),money,true),
    chart('Producción diaria por llegada',tally('arrival',x=>x.gross),money,true),
    chart('Mix de ventas por canal',tally('channel',x=>x.gross)),
    chart('Estancia · distribución',Object.entries(stayBuckets),num),
@@ -145,7 +145,7 @@ async function showPickup(){
 function modelDetail(kind){
   const building=$('building').value;
   const months=[...new Set(latest().filter(x=>!building||x.building===building).map(x=>x.month))].sort();
-  const title={occupancy:'Ocupación',adr:'ADR sin IVA',revpar:'RevPAR sin IVA',direct:'Venta directa',cancel:'Cancelaciones',pickup:'Pickup',gross:'Producción PVP'}[kind];
+  const title={occupancy:'Ocupación',adr:'ADR sin IVA',revpar:'RevPAR sin IVA',direct:'Venta directa',cancel:'Cancelaciones',pickup:'Pickup',gross:'Ventas PVP'}[kind];
   const result=months.map(month=>{
     const m=metrics(month);
     const calculated={occupancy:m.occupancy===null?'—':pct(m.occupancy),adr:m.adr===null?'—':money(m.adr),revpar:m.revpar===null?'—':money(m.revpar),direct:m.direct===null?'—':pct(m.direct),gross:money(m.gross),cancel:model.cancelled===null?'—':'Requiere canceladas por mes',pickup:'Requiere dos capturas'};
