@@ -20,9 +20,9 @@ function openDetail(key){
   selectedDetailGroup=null;
   const labels={gross:'Ventas PVP',count:'Reservas',nights:'Noches reservadas',stay:'Estancia media',guests:'Ocupantes medios',lead:'Antelación de reserva',direct:'Venta directa',occupancy:'Ocupación',adr:'ADR',revpar:'RevPAR',cancel:'Cancelaciones',pickup:'Pickup'};
   const base=subset(), title=labels[key]||'Indicador';
-  const p=window.periodMonths?.(),building=$('building').value;
+  const p=window.periodMonths?.(),building=selectedBuilding();
   const modeLabels={month:'Mes',year:'Acumulado año',tam:'TAM'};
-  const contextText=[building||'Todos los edificios',p?modeLabels[p.mode]+' · '+p.anchor:'',$('asOfDate')?.value?'Corte: '+$('asOfDate').value:''].filter(Boolean).join(' · ');
+  const contextText=[buildingLabel(building),p?modeLabels[p.mode]+' · '+p.anchor:'',$('asOfDate')?.value?'Corte: '+$('asOfDate').value:''].filter(Boolean).join(' · ');
   $('detail').innerHTML=`<div class="summary-top"><div><div class="mini">ANÁLISIS EN DETALLE</div><h2>${safe(title)} · ${detailNumber(base,key)}</h2><p class="note">${safe(contextText)}</p></div></div>
     <p class="note">${base.length} reservas confirmadas con los filtros actuales. Elige cómo desglosarlas; todas las cifras se recalculan al cambiar la dimensión.</p>
     <label class="detail-label">Desglosar por <select id="detailDimension"><option value="month">Mes de llegada</option><option value="building">Edificio</option><option value="channel">Canal</option><option value="rate">Tarifa</option><option value="roomType">Tipo de habitación</option><option value="country">País</option></select></label>

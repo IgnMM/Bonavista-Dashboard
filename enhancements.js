@@ -51,15 +51,15 @@ function stayOverlap(item,month){
   return Math.max(0,Math.round((Math.min(Date.parse(item.departure),Date.parse(end))-Math.max(Date.parse(item.arrival),Date.parse(start)))/86400000));
 }
 function metrics(monthOverride,buildingOverride){
-  const building=buildingOverride??$('building').value, month=monthOverride??$('month').value;
-  const all=latest().filter(x=>!building||x.building===building);
+  const building=buildingOverride??selectedBuilding(), month=monthOverride??$('month').value;
+  const all=latest().filter(x=>!building||matchBuilding(x.building,building));
   const months=month?[month]:(window.periodMonths?.()?.months||[...new Set(all.map(x=>x.month))].sort());
   const occupied=all.reduce((sum,x)=>sum+months.reduce((a,m)=>a+stayOverlap(x,m),0),0);
   const overnight=all.reduce((sum,x)=>sum+(x.nights?Math.max(0,x.rental-x.discount+(model.cleaning?(x.cleaning||0):0))*(months.reduce((a,m)=>a+stayOverlap(x,m),0)/x.nights):0),0);
-  const present=building?[building]:[...new Set(all.map(x=>x.building))];
+  const present=building?[...building]:[...new Set(all.map(x=>x.building))];
   const available=months.reduce((sum,m)=>{const [year,mo]=m.split('-').map(Number);const days=new Date(year,mo,0).getDate();return sum+present.reduce((a,b)=>a+Math.max(0,(Number(model.units[b])||0)*days-(Number(model.blocks[b])||0)),0)},0);
   const revenue=overnight/(1+Number(model.vat||0)/100);
-  const rows=(monthOverride||buildingOverride)?latest().filter(x=>(!month||x.month===month)&&(!building||x.building===building)):subset();const gross=rows.reduce((a,b)=>a+b.gross,0);
+  const rows=(monthOverride||buildingOverride)?latest().filter(x=>(!month||x.month===month)&&(!building||matchBuilding(x.building,building))):subset();const gross=rows.reduce((a,b)=>a+b.gross,0);
   const direct=new Set(model.direct.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean));
   const directGross=rows.filter(x=>direct.has(x.channel.toLowerCase())).reduce((a,b)=>a+b.gross,0);
   return {rows,months,occupied,available,adr:occupied?revenue/occupied:null,revpar:available?revenue/available:null,occupancy:available?occupied/available:null,direct:gross?directGross/gross:null,gross};
@@ -104,7 +104,9 @@ function reviewMovement(points){
 }
 function showReviews(){
   const history=JSON.parse(localStorage.getItem(REVIEW_KEY)||'{}');
-  const building=$('building').value||'TODOS';
+  const sel=selectedBuilding(),single=sel&&sel.size===1?[...sel][0]:null;
+  if(!single){$('reviews').innerHTML='<p class="note">Elige un único edificio arriba (no «Todos» ni varios) para ver y editar su reputación; las notas no se agregan entre edificios.</p>';return}
+  const building=single;
   $('reviews').innerHTML='<div class="reviews-grid">'+[['Booking',10],['Expedia',10],['Airbnb',5],['Google',5]].map(([platform,scale])=>{
     const key=building+'|'+platform,points=history[key]||[],last=points.at(-1);
     return `<div class="review-input"><label>${platform} · ${last?num(last.score)+'/'+scale:'sin dato'}</label><small>${last?'Última captura: '+new Date(last.date).toLocaleDateString('es-ES')+(last.source?` · <a href="${safe(last.source)}" target="_blank" rel="noopener noreferrer">fuente</a>`:''):'Sin captura inicial'}</small>${reviewMovement(points)}<input type="number" step="0.1" min="0" max="${scale}" placeholder="Nota de 0 a ${scale}" data-platform="${platform}" data-scale="${scale}"><div class="assumption-grid"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Limpieza" data-category="cleaning" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Atención" data-category="staff" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Ubicación" data-category="location" data-owner="${platform}"></div>${last&&last.categories&&Object.keys(last.categories).length?`<small>Aspectos: ${Object.entries(last.categories).map(([k,v])=>`${safe(k)} ${num(v)}`).join(' · ')}</small>`:''}<button class="ghost" data-save-review="${platform}">Guardar nota</button></div>`
@@ -126,25 +128,25 @@ render=function(){
   $('quality').textContent+=' Ocupación estimada con los apartamentos observados en el fichero y sin estancias que empezaron antes del periodo exportado.'+(m.occupancy>1?' Aviso: ocupación superior al 100%; revisa el inventario, los bloqueos o las noches.':'');
 };
 async function showPickup(){
-  const snapshotKey=$('snapshots').value, selection=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1), building=$('building').value;
+  const snapshotKey=$('snapshots').value, selection=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1), building=selectedBuilding();
   const list=await listSnapshots().catch(()=>[]);
   const currentIndex=snapshotKey?list.findIndex(x=>x.id===snapshotKey):0;
   if(currentIndex<0)return;
-  const previous=list.slice(currentIndex+1).find(x=>x.data.bookings.some(b=>(!selection||b.month===selection)&&(!building||b.building===building)));
+  const previous=list.slice(currentIndex+1).find(x=>x.data.bookings.some(b=>(!selection||b.month===selection)&&(!building||matchBuilding(b.building,building))));
   if(!previous)return;
-  const included=x=>(!selection||x.month===selection)&&(!building||x.building===building);
+  const included=x=>(!selection||x.month===selection)&&(!building||matchBuilding(x.building,building));
   const before=previous.data.bookings.filter(included),now=latest().filter(included);
   const delta=now.reduce((s,x)=>s+x.nights,0)-before.reduce((s,x)=>s+x.nights,0);
   const deltaValue=now.reduce((s,x)=>s+x.gross,0)-before.reduce((s,x)=>s+x.gross,0);
   const card=document.querySelector('[data-metric="pickup"]');
-  if(card && selection===($('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1)) && building===$('building').value){
+  if(card && selection===($('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1)) && buildingsEqual(building,selectedBuilding())){
     card.querySelector('strong').textContent=(delta>=0?'+':'')+num(delta)+' noches';
     card.querySelector('em').textContent=(deltaValue>=0?'+':'')+money(deltaValue)+' PVP desde '+new Date(previous.id).toLocaleDateString('es-ES')+' · comparar cobertura';
   }
 }
 function modelDetail(kind){
-  const building=$('building').value;
-  const months=[...new Set(latest().filter(x=>!building||x.building===building).map(x=>x.month))].sort();
+  const building=selectedBuilding();
+  const months=[...new Set(latest().filter(x=>!building||matchBuilding(x.building,building)).map(x=>x.month))].sort();
   const title={occupancy:'Ocupación',adr:'ADR sin IVA',revpar:'RevPAR sin IVA',direct:'Venta directa',cancel:'Cancelaciones',pickup:'Pickup',gross:'Ventas PVP'}[kind];
   const result=months.map(month=>{
     const m=metrics(month);
