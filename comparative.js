@@ -126,10 +126,10 @@ window.periodMonths=periodMonths;
 const PERIOD_LABELS={month:'Mes',year:'Acumulado año',tam:'TAM · últimos 12 meses'};
 function ensurePeriodControl(){
  if($('periodTabs'))return;
- const filtersEl=document.querySelector('.filters');if(!filtersEl)return;
+ const anchor=document.querySelector('.panel.pace');if(!anchor)return;
  const bar=document.createElement('div');bar.className='period-control';bar.id='periodTabs';
  bar.innerHTML='<div class="period-tabs" role="tablist">'+Object.entries(PERIOD_LABELS).map(([mode,label])=>`<button type="button" data-mode="${mode}">${safe(label)}</button>`).join('')+'</div><p class="note" id="periodLabel"></p>';
- filtersEl.parentNode.insertBefore(bar,filtersEl.nextSibling);
+ anchor.parentNode.insertBefore(bar,anchor);
  bar.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{window.PERIOD_MODE=btn.dataset.mode;render()}));
 }
 function renderPeriodControl(){
