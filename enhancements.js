@@ -29,16 +29,12 @@ function showModel(){
    <label>IVA supuesto sobre alojamiento (%)<input id="vat" type="number" min="0" max="30" step="0.1" value="${model.vat}"></label>
    <label>Canales considerados directos<input id="direct" type="text" value="${safe(model.direct)}"></label>
    <label>Noches canceladas (si se conocen)<input id="cancelled" type="number" min="0" step="1" value="${model.cancelled??''}" placeholder="Sin dato"></label>
-   <label>Producción mismo mes del año anterior (€)<input id="priorMonth" type="number" min="0" step="0.01" value="${model.priorMonth??''}" placeholder="Sin dato"></label>
-   <label>Producción acumulada año anterior (€)<input id="priorYTD" type="number" min="0" step="0.01" value="${model.priorYTD??''}" placeholder="Sin dato"></label>
    </div><p class="assumption-note">Para ocupación y RevPAR, número de apartamentos observado en el fichero como punto de partida. Comprueba el inventario real y los bloqueos. ADR supone que «Precio alquiler» incluye el IVA indicado y excluye limpieza.</p>
    <label class="assumption-note"><input id="cleaning" type="checkbox" ${model.cleaning?'checked':''}> Incluir limpieza final en la base de ADR y RevPAR (hipótesis editable)</label>
    <div>${buildings.map(b=>`<div class="inventory-row"><b>${safe(b)}</b><label>Apartamentos disponibles<input class="units" data-building="${safe(b)}" type="number" min="0" step="1" value="${model.units[b]}"></label><label>Noches bloqueadas en el mes<input class="blocks" data-building="${safe(b)}" type="number" min="0" step="1" value="${model.blocks[b]}"></label></div>`).join('')}</div>`;
-  for(const id of ['vat','direct','cancelled','priorMonth','priorYTD'])$(id).addEventListener('change',()=>{
+  for(const id of ['vat','direct','cancelled'])$(id).addEventListener('change',()=>{
     model.vat=Number($('vat').value);model.direct=$('direct').value;model.cleaning=$('cleaning').checked;
     model.cancelled=$('cancelled').value===''?null:Number($('cancelled').value);
-    model.priorMonth=$('priorMonth').value===''?null:Number($('priorMonth').value);
-    model.priorYTD=$('priorYTD').value===''?null:Number($('priorYTD').value);
     saveModel();render();
   });
   $('cleaning').addEventListener('change',()=>{model.cleaning=$('cleaning').checked;saveModel();render()});
@@ -57,7 +53,7 @@ function stayOverlap(item,month){
 function metrics(monthOverride,buildingOverride){
   const building=buildingOverride??$('building').value, month=monthOverride??$('month').value;
   const all=latest().filter(x=>!building||x.building===building);
-  const months=month?[month]:[...new Set(all.map(x=>x.month))].sort();
+  const months=month?[month]:(window.periodMonths?.()?.months||[...new Set(all.map(x=>x.month))].sort());
   const occupied=all.reduce((sum,x)=>sum+months.reduce((a,m)=>a+stayOverlap(x,m),0),0);
   const overnight=all.reduce((sum,x)=>sum+(x.nights?Math.max(0,x.rental-x.discount+(model.cleaning?(x.cleaning||0):0))*(months.reduce((a,m)=>a+stayOverlap(x,m),0)/x.nights):0),0);
   const present=building?[building]:[...new Set(all.map(x=>x.building))];
@@ -124,30 +120,7 @@ const previousRender=render;
 render=function(){
   previousRender();
   initModel();
-  const m=metrics(),caption='Hipótesis editable · pendiente de validación';
-  const occupancy=m.occupancy===null?'—':pct(m.occupancy);
-  const adr=m.adr===null?'—':money(m.adr);
-  const revpar=m.revpar===null?'—':money(m.revpar);
-  const cancel=model.cancelled===null?'—':pct(model.cancelled/(model.cancelled+m.occupied||1));
-  const yoy=model.priorMonth>0?pct((m.gross-model.priorMonth)/model.priorMonth):'—';
-  const selectedYear=($('month').value||m.months.at(-1)||'').slice(0,4);
-  const ytdRows=latest().filter(x=>x.month.startsWith(selectedYear)&&(!$('building').value||x.building===$('building').value));
-  const ytd=ytdRows.reduce((n,x)=>n+x.gross,0),ytdMonths=[...new Set(ytdRows.map(x=>x.month))].sort();
-  const ytdExpected=Number((m.months.at(-1)||'').slice(5,7));
-  const ytdComparison=model.priorYTD>0?pct((ytd-model.priorYTD)/model.priorYTD):'—';
-  $('pending').innerHTML=[
-   ['Ocupación',occupancy,`${num(m.occupied)} noches ocupadas / ${num(m.available)} disponibles · ${caption}`,'occupancy'],
-   ['ADR sin IVA',adr,'Alquiler menos descuento'+(model.cleaning?' más limpieza':'')+' / noches · IVA '+num(model.vat)+' %','adr'],
-   ['RevPAR sin IVA',revpar,'Alquiler / noches disponibles · '+caption,'revpar'],
-   ['Venta directa',m.direct===null?'—':pct(m.direct),'Canales editables · referencia 2025: 13,4 % (Pablo)','direct'],
-   ['Acumulado '+selectedYear,money(ytd),`${ytdMonths.length}/${ytdExpected||'?'} meses presentes · ${ytdMonths.length<ytdExpected?'INCOMPLETO':'completo'}`,'gross'],
-   ['Cancelaciones',cancel,'Noches canceladas introducidas / total noches','cancel'],
-   ['Pickup neto','—','Se calculará al comparar dos capturas del mismo periodo','pickup'],
-   ['Ventas vs. mismo mes anterior',yoy,'Base del mismo mes introducida por Pablo','gross'],
-   ['Acumulado vs. año anterior',ytdComparison,'Base acumulada introducida por Pablo; verificar cobertura','gross']
-  ].map(c=>`<button class="card modeled" data-metric="${c[3]}"><span>${safe(c[0])}</span><strong>${safe(c[1])}</strong><em>${safe(c[2])}</em></button>`).join('');
-  document.querySelectorAll('[data-metric]').forEach(button=>button.addEventListener('click',()=>modelDetail(button.dataset.metric)));
-  showCharts(m.rows);
+  const m=metrics();
   showReviews();
   showPickup();
   $('quality').textContent+=' Ocupación estimada con los apartamentos observados en el fichero y sin estancias que empezaron antes del periodo exportado.'+(m.occupancy>1?' Aviso: ocupación superior al 100%; revisa el inventario, los bloqueos o las noches.':'');
