@@ -17,6 +17,10 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;padding:0}
 @media print{.sticky-bar{position:static;box-shadow:none}.multiselect-panel{display:none!important}}
 .snapshot-banner{background:#FFF3CD;border:2px solid #cb9654;color:#5c4413;border-radius:12px;padding:12px 18px;margin:14px 0;font-size:13px;font-weight:700}.snapshot-banner a,.snapshot-banner button{margin-left:10px;font-weight:700}.snapshot-banner.hidden{display:none}
+#contextLine.context-alert{background:#E4042C;color:#fff;padding:7px 12px;border-radius:8px;font-weight:800;animation:context-pulse 1.6s ease-in-out 1}#contextLine.context-alert button{margin-left:10px;background:#fff;color:#E4042C;border:0;border-radius:6px;padding:4px 9px;font-weight:800;cursor:pointer;font-size:11px}
+@keyframes context-pulse{0%{box-shadow:0 0 0 0 #E4042C55}70%{box-shadow:0 0 0 8px #E4042C00}100%{box-shadow:0 0 0 0 #E4042C00}}
+.pace-month.selected:not(.current){background:#F1EFEE;border-color:#B6AAAD}.pace-month.selected:not(.current) .pace-month-bar{opacity:.85}
+.chart-hint{font-size:12px;color:#595557;font-weight:700;margin:8px 0 0}
 .pace-month.clickable{cursor:pointer}.pace-month.clickable:hover{background:#FAF5F5;border-color:#E4C4CB}
 .reset-period{font-size:11px;font-weight:700;color:#9D001C;background:none;border:0;cursor:pointer;padding:0;text-decoration:underline}
 .header-actions{display:flex;gap:10px;align-items:center}.settings-link{font-size:12px;padding:8px 14px;display:inline-block;text-decoration:none}
@@ -78,7 +82,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 <div id="dashboard" class="hidden">
 <div class="block-header"><span class="block-number">2</span><div><h2>Evolución</h2><p class="note">Elige Mes, Acumulado año o TAM y el indicador a seguir, para ver si vamos mejor o peor que el año anterior.</p></div></div>
 <div id="snapshotBanner" class="snapshot-banner hidden"></div>
-<div class="panel filters"><p class="note" id="periodInfo"></p><span class="note" id="coverage"></span><select id="month" class="visually-hidden" tabindex="-1" aria-hidden="true"></select></div>
+<span class="note visually-hidden" id="coverage"></span><select id="month" class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
 <div class="panel pace"><div class="summary-top pace-only"><div><div class="mini">VENTAS Y RITMO DEL MES</div><h2>Este mes frente al año anterior</h2></div><span class="note" id="asOfText"></span><input id="asOfDate" type="date" class="visually-hidden" tabindex="-1" aria-hidden="true"></div><div id="pace" class="pace-only"></div><div id="paceMonthly"></div><div id="ytdCurve"></div><div id="rollingMAT"></div></div>
 <div class="block-header"><span class="block-number">3</span><div><h2>De dónde vienen las ventas</h2><p class="note">Volumen y perfil de las reservas, y cómo se reparten las ventas, para el periodo elegido arriba.</p></div></div>
 <div class="group-title">Actividad y perfil de las reservas <small>Cifras calculadas sobre las reservas confirmadas del periodo elegido arriba.</small></div>

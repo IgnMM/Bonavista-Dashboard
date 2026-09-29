@@ -7,15 +7,9 @@ function buildingLabel(building){if(!building)return'Todos los edificios';const 
 function updateBuildingTrigger(){const t=$('buildingTrigger');if(t)t.textContent=buildingLabel(selectedBuilding())}
 function syncBuildingSelect(){for(const opt of $('building').options)opt.selected=window.SELECTED_BUILDINGS.has(opt.value);$('building').dispatchEvent(new Event('change'))}
 function buildingsEqual(a,b){const ka=a?[...a].sort().join(','):'',kb=b?[...b].sort().join(','):'';return ka===kb}
-function openMonthFromChart(month){$('month').value=month;render();document.getElementById('paceMonthly')?.scrollIntoView({behavior:'smooth',block:'nearest'})}
-function renderPeriodInfo(){
- const holder=$('periodInfo');if(!holder)return;
- const p=window.periodMonths?window.periodMonths():null;if(!p){holder.textContent='';return}
- const mode=window.PERIOD_MODE||'month',modeLabels={month:'Mes',year:'Acumulado año',tam:'TAM'};
- const custom=!!$('month').value;
- holder.innerHTML=modeLabels[mode]+' · '+escape(p.anchor)+(custom?' <button type="button" class="reset-period" id="resetPeriod">Volver al mes más reciente</button>':'');
- $('resetPeriod')?.addEventListener('click',()=>{$('month').value='';render()});
-}
+function openMonthFromChart(month){$('month').value=month;render()}
+function resetToLatestMonth(){$('month').value='';render()}
+function isViewingPastMonth(){return !!$('month').value}
 async function exitSnapshotView(){window.VIEWING_SNAPSHOT=null;await refreshPortfolio();const items=await listSnapshots();if(items.length)payload=items[0].data;setupFilters(payload);render()}
 function renderSnapshotBanner(){
  const holder=$('snapshotBanner');if(!holder)return;
