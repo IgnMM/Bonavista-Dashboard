@@ -29,7 +29,6 @@ function previousYearComparison(){
 }
 function renderPace(){
   if(!payload)return;
-  renderHistoricalTrends();
   const comparison=previousYearComparison();
   $('asOfDate').value=window.PORTFOLIO_ASOF?.[comparison?.current]||payload.meta.as_of||'';
   if(!comparison){
