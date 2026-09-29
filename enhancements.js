@@ -118,12 +118,36 @@ function showReviews(){
     (history[building+'|'+name]??=[]).push({date:new Date().toISOString(),score,categories});localStorage.setItem(REVIEW_KEY,JSON.stringify(history));showReviews();
   }));
 }
+function showCompetitorReviews(){
+  const holder=$('competitorReviews');if(!holder)return;
+  const db=window.BONAVISTA_MARKET?.read?.()||{reviews:[]};
+  const sel=selectedBuilding(),single=sel&&sel.size===1?[...sel][0]:null;
+  if(!single){holder.innerHTML='<p class="note">Elige un único edificio arriba (no «Todos» ni varios) para ver su competencia.</p>';return}
+  const all=db.reviews.filter(x=>x.competitor&&x.building===single).map(x=>({...x,date:x.capturedAt}));
+  const types=[...new Set(all.map(x=>x.businessType).filter(Boolean))].sort();
+  const zones=[...new Set(all.map(x=>x.postalCode).filter(Boolean))].sort();
+  const typeSel=$('competitorTypeFilter'),zoneSel=$('competitorZoneFilter');
+  if(typeSel){const cur=typeSel.value;typeSel.innerHTML='<option value="">Todos los tipos</option>'+types.map(t=>`<option value="${safe(t)}" ${cur===t?'selected':''}>${safe(t)}</option>`).join('')}
+  if(zoneSel){const cur=zoneSel.value;zoneSel.innerHTML='<option value="">Todos los códigos postales</option>'+zones.map(z=>`<option value="${safe(z)}" ${cur===z?'selected':''}>${safe(z)}</option>`).join('')}
+  const typeFilter=typeSel?.value||'',zoneFilter=zoneSel?.value||'';
+  const filtered=all.filter(x=>(!typeFilter||x.businessType===typeFilter)&&(!zoneFilter||x.postalCode===zoneFilter));
+  const byCompetitor={};for(const r of filtered)(byCompetitor[r.competitor]??=[]).push(r);
+  const names=Object.keys(byCompetitor).sort();
+  if(!names.length){holder.innerHTML=`<p class="note">Sin competidores cargados todavía para ${safe(single)}${typeFilter||zoneFilter?' con este filtro':''}. Se añaden a mano en integrations/public-pages.json (array «competitors») y se cargan con «Actualizar mercado» o importando el JSON del lector.</p>`;return}
+  holder.innerHTML='<div class="reviews-grid">'+names.map(name=>{
+    const points=byCompetitor[name].slice().sort((a,b)=>a.date.localeCompare(b.date)),last=points.at(-1);
+    return `<div class="review-input"><label>${safe(name)} · ${num(last.score)}/5</label><small>${safe(last.businessType||'Tipo sin definir')}${last.postalCode?' · CP '+safe(last.postalCode):''}</small><small>Última captura: ${new Date(last.date).toLocaleDateString('es-ES')}${last.source?` · <a href="${safe(last.source)}" target="_blank" rel="noopener noreferrer">fuente</a>`:''}</small>${reviewMovement(points)}</div>`;
+  }).join('')+'</div><p class="note">Solo Google: Booking y Expedia no se leen para terceros por sus condiciones de uso. Lista manual de competidores, no descubrimiento automático.</p>';
+}
+$('competitorTypeFilter')?.addEventListener('change',showCompetitorReviews);
+$('competitorZoneFilter')?.addEventListener('change',showCompetitorReviews);
 const previousRender=render;
 render=function(){
   previousRender();
   initModel();
   const m=metrics();
   showReviews();
+  showCompetitorReviews();
   showPickup();
   $('quality').textContent+=' Ocupación estimada con los apartamentos observados en el fichero y sin estancias que empezaron antes del periodo exportado.'+(m.occupancy>1?' Aviso: ocupación superior al 100%; revisa el inventario, los bloqueos o las noches.':'');
 };

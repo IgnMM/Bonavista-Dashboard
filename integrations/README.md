@@ -2,6 +2,31 @@
 
 Este lector se ejecutó como prototipo local de desarrollo. **Pablo no tendrá que instalarlo ni ejecutar comandos**: el servicio final se alojará y administrará con el dashboard. No se utilizan API ni credenciales de Booking, Expedia o Airbnb. El lector visita las fichas públicas enumeradas en `public-pages.json`, intenta leer la nota global y categorías visibles y devuelve por separado los errores. No inicia sesión ni intenta superar bloqueos de acceso. Las URL son fichas encontradas en buscadores y deben cotejarse con Pablo, especialmente cuando una plataforma tiene varias fichas por apartamento.
 
+Las fichas se leen **en paralelo** (hasta `BONAVISTA_CONCURRENCY`, 4 por defecto), cada una en su propia pestaña del mismo navegador, no una detrás de otra.
+
+## Competencia (benchmark)
+
+`public-pages.json` tiene un segundo array, `competitors`, separado de `profiles` (que son las fichas propias de Bonavista). Es una lista manual: hay que añadir cada competidor a mano, con su URL de Google Maps. No hay descubrimiento automático por zona.
+
+Por decisión explícita (2026-09-29): los competidores **solo se leen de Google**, nunca de Booking o Expedia — ambas restringen el acceso automatizado en sus condiciones y el riesgo es mayor cuantas más fichas ajenas se consultan. Si se añade un competidor con otra plataforma, el lector lo salta y lo reporta en `errors` sin visitarlo; es un control en el propio código (`COMPETITOR_ALLOWED_PLATFORMS`), no solo una nota en este documento.
+
+Esquema de cada entrada de `competitors`:
+
+```json
+{
+  "platform": "Google",
+  "competitor": "Nombre del alojamiento competidor",
+  "building": "Bonavista Virreina",
+  "postalCode": "08001",
+  "businessType": "hotel",
+  "url": "https://www.google.com/maps/place/..."
+}
+```
+
+- `building`: el edificio de Bonavista con el que se compara (para filtrar en el dashboard junto al resto de cifras de ese edificio).
+- `postalCode` / `businessType` ("hotel", "aparthotel", etc.): metadatos libres, se muestran como etiqueta junto a la nota y sirven para filtrar la lista de competidores en el dashboard.
+- El resultado lleva estos mismos campos (`competitor`, `postalCode`, `businessType`) además de `platform`/`building`/`score`/`categories`/`capturedAt`/`source`, para que el dashboard distinga la reputación propia de la de cada competidor.
+
 Solo para un desarrollador que quiera probar el prototipo local:
 
 ```sh

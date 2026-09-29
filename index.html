@@ -106,6 +106,9 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 <div class="block-header"><span class="block-number">4</span><div><h2>Mercado y reputación</h2><p class="note">Valoraciones en plataformas y precios comparables de la competencia; no proceden de las reservas de Bonavista.</p></div></div>
 <div class="panel market-panel">
 <h3>Reputación</h3><p class="note">Las notas se conservan solo cuando cambia su valor; la actualización automática se activará cuando el servicio de mercado esté configurado.</p><div id="reviews"></div>
+<h3>Reputación de la competencia</h3><p class="note">Lista manual de competidores por edificio, solo con nota de Google (Booking y Expedia quedan fuera por sus condiciones de uso). Se añaden en <code>integrations/public-pages.json</code>.</p>
+<div class="history-row"><label>Tipo <select id="competitorTypeFilter"><option value="">Todos los tipos</option></select></label><label>Código postal <select id="competitorZoneFilter"><option value="">Todos los códigos postales</option></select></label></div>
+<div id="competitorReviews"></div>
 <h3>Precios de mercado</h3><p class="note">Capturas a demanda; se guardan solo precios distintos para fechas, estancias y ocupación comparables.</p><button id="marketRefresh" class="market-refresh-btn">Actualizar mercado</button><p id="marketStatus" class="note" role="status">La actualización automática se activará al conectar el servicio de mercado.</p><label class="market-import">Importar respuesta de proveedor (.json) <input id="marketFile" type="file" accept=".json"></label><p id="marketCount" class="mini"></p><div id="marketTable"></div>
 </div>
 </div><p class="footer">BONAVISTA · Los archivos Bookypro se procesan en este navegador; el servicio de mercado se consultará al pulsar el botón cuando esté activo.</p>
