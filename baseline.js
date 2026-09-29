@@ -12,9 +12,7 @@ function renderSimulatedBanner(){
   if(bookingMonths.length){const sorted=bookingMonths.sort();parts.push(sorted.length>1?`las reservas cargadas de ${sorted[0]} a ${sorted.at(-1)}`:`las reservas cargadas de ${sorted[0]}`)}
   holder.innerHTML=`<b>⚠ Datos inventados en esta pantalla</b><span>${parts.join(' y ')} son una simulación de prueba, no cifras reales de Bonavista. Hay que pedir a Pablo las exportaciones reales de esos periodos antes de usar estas cifras para nada. Esta carga de prueba es solo local en este navegador; nunca se sube a GitHub.</span>`;
 }
-function initBaseline(){
-  $('asOfDate').addEventListener('change',()=>{if(payload){payload.meta.as_of=$('asOfDate').value;const month=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1);if(month)window.PORTFOLIO_ASOF[month]=$('asOfDate').value;render()}});
-}
+function initBaseline(){}
 function previousYearComparison(){
   if(!payload||!historical)return null;
   const current=($('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1));
@@ -30,7 +28,9 @@ function previousYearComparison(){
 function renderPace(){
   if(!payload)return;
   const comparison=previousYearComparison();
-  $('asOfDate').value=window.PORTFOLIO_ASOF?.[comparison?.current]||payload.meta.as_of||'';
+  const asOfValue=window.PORTFOLIO_ASOF?.[comparison?.current]||payload.meta.as_of||'';
+  $('asOfDate').value=asOfValue;
+  if($('asOfText'))$('asOfText').textContent=asOfValue?'Datos a '+new Date(asOfValue).toLocaleDateString('es-ES')+' · última carga':'';
   if(!comparison){
     $('pace').innerHTML=`<p class="note">Importa el histórico de 2025 para comparar la producción en cartera a la fecha de corte con la cifra de cierre del mismo mes anterior.</p>`;
     return;

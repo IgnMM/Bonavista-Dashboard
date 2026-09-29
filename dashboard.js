@@ -7,11 +7,28 @@ function buildingLabel(building){if(!building)return'Todos los edificios';const 
 function updateBuildingTrigger(){const t=$('buildingTrigger');if(t)t.textContent=buildingLabel(selectedBuilding())}
 function syncBuildingSelect(){for(const opt of $('building').options)opt.selected=window.SELECTED_BUILDINGS.has(opt.value);$('building').dispatchEvent(new Event('change'))}
 function buildingsEqual(a,b){const ka=a?[...a].sort().join(','):'',kb=b?[...b].sort().join(','):'';return ka===kb}
+function openMonthFromChart(month){$('month').value=month;render();document.getElementById('paceMonthly')?.scrollIntoView({behavior:'smooth',block:'nearest'})}
+function renderPeriodInfo(){
+ const holder=$('periodInfo');if(!holder)return;
+ const p=window.periodMonths?window.periodMonths():null;if(!p){holder.textContent='';return}
+ const mode=window.PERIOD_MODE||'month',modeLabels={month:'Mes',year:'Acumulado año',tam:'TAM'};
+ const custom=!!$('month').value;
+ holder.innerHTML=modeLabels[mode]+' · '+escape(p.anchor)+(custom?' <button type="button" class="reset-period" id="resetPeriod">Volver al mes más reciente</button>':'');
+ $('resetPeriod')?.addEventListener('click',()=>{$('month').value='';render()});
+}
+async function exitSnapshotView(){window.VIEWING_SNAPSHOT=null;await refreshPortfolio();const items=await listSnapshots();if(items.length)payload=items[0].data;setupFilters(payload);render()}
+function renderSnapshotBanner(){
+ const holder=$('snapshotBanner');if(!holder)return;
+ if(!window.VIEWING_SNAPSHOT){holder.classList.add('hidden');holder.innerHTML='';return}
+ holder.classList.remove('hidden');
+ holder.innerHTML='Viendo la carga guardada del '+new Date(window.VIEWING_SNAPSHOT).toLocaleString('es-ES')+': así se veía la cartera en ese momento, no necesariamente cómo se ve ahora. <button type="button" class="ghost" id="exitSnapshot">Volver a la vista actual</button>';
+ $('exitSnapshot').onclick=()=>exitSnapshotView();
+}
 
-$('load').onclick=async()=>{const a=$('bookings').files[0],b=$('services').files[0];if(!a||!b){$('status').textContent='Selecciona los dos archivos de la misma exportación.';return} $('status').textContent='Validando los archivos…';$('dashboard').classList.add('hidden');try{const data=await analyseFiles(a,b);payload=data;let saved=true;let isNew=true;try{isNew=await saveSnapshot(data,a.name,b.name)}catch(err){saved=false}setupFilters(data);$('dashboard').classList.remove('hidden');$('status').textContent=(saved?(isNew?'Nueva captura guardada: ':'Captura idéntica a otra ya guardada; sin duplicar: '):'Importación mostrada sin guardar; el navegador bloqueó el almacenamiento local: ')+data.meta.reservations+' reservas y '+data.meta.service_lines+' líneas de servicios.';render()}catch(e){$('status').textContent='Error: '+e.message}};
+$('load').onclick=async()=>{const a=$('bookings').files[0],b=$('services').files[0];if(!a||!b){$('status').textContent='Selecciona los dos archivos de la misma exportación.';return} window.VIEWING_SNAPSHOT=null;$('status').textContent='Validando los archivos…';$('dashboard').classList.add('hidden');try{const data=await analyseFiles(a,b);payload=data;let saved=true;let isNew=true;try{isNew=await saveSnapshot(data,a.name,b.name)}catch(err){saved=false}setupFilters(data);$('dashboard').classList.remove('hidden');$('status').textContent=(saved?(isNew?'Nueva captura guardada: ':'Captura idéntica a otra ya guardada; sin duplicar: '):'Importación mostrada sin guardar; el navegador bloqueó el almacenamiento local: ')+data.meta.reservations+' reservas y '+data.meta.service_lines+' líneas de servicios.';render()}catch(e){$('status').textContent='Error: '+e.message}};
 $('building').onchange=()=>render();$('month').onchange=()=>render();
 document.querySelector('.settings-link')?.addEventListener('click',e=>{e.preventDefault();$('settings').open=true;$('settings').scrollIntoView({behavior:'smooth',block:'start'})});
-$('openSnapshot').onclick=async()=>{const id=$('snapshots').value;if(!id)return;const record=(await listSnapshots()).find(x=>x.id===id);if(!record)return;payload=record.data;window.PORTFOLIO_BOOKINGS=record.data.bookings;window.PORTFOLIO_ASOF=Object.fromEntries([...new Set(record.data.bookings.map(x=>x.month))].map(month=>[month,record.data.meta.as_of||id.slice(0,10)]));setupFilters(payload);$('dashboard').classList.remove('hidden');$('status').textContent='Carga del '+new Date(id).toLocaleString('es-ES')+' · '+record.bookName;render()};
+$('openSnapshot').onclick=async()=>{const id=$('snapshots').value;if(!id)return;const record=(await listSnapshots()).find(x=>x.id===id);if(!record)return;payload=record.data;window.PORTFOLIO_BOOKINGS=record.data.bookings;window.PORTFOLIO_ASOF=Object.fromEntries([...new Set(record.data.bookings.map(x=>x.month))].map(month=>[month,record.data.meta.as_of||id.slice(0,10)]));window.VIEWING_SNAPSHOT=id;setupFilters(payload);$('dashboard').classList.remove('hidden');$('status').textContent='Carga del '+new Date(id).toLocaleString('es-ES')+' · '+record.bookName;render()};
 $('backup').onclick=()=>exportSnapshots().catch(e=>$('status').textContent=e.message);
 $('restoreBackup').addEventListener('change',async event=>{const file=event.target.files[0];if(!file)return;try{const result=await restoreSnapshots(file);$('status').textContent=`Copia incorporada: ${result.added} cargas y ${result.marketAdded} observaciones de mercado nuevas. Los datos previos se conservan.`;if(payload){setupFilters(payload);render()}}catch(e){$('status').textContent='No se pudo recuperar la copia: '+e.message}event.target.value=''});
 refreshSnapshots().catch(e=>$('status').textContent='No se puede acceder al almacenamiento local: '+e.message);
