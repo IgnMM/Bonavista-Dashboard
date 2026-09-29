@@ -142,6 +142,14 @@ function renderPeriodControl(){
  const coverage=p.months.filter(m=>latest().some(x=>x.month===m)).length;
  label.textContent=`${range} · ${coverage}/${p.months.length} meses con carga`+(p.isOpen?' · mes en curso, cifras a fecha de la última exportación':(mode!=='month'&&coverage<p.months.length?' · faltan meses por cargar':''));
 }
+function renderContextLine(){
+ const holder=$('contextLine');if(!holder)return;
+ if(!payload){holder.textContent='';return}
+ const mode=window.PERIOD_MODE||'month',p=periodMonths();
+ const lastLoad=Object.values(window.PORTFOLIO_ASOF||{}).concat(payload.meta.as_of?[payload.meta.as_of]:[]).sort().at(-1);
+ const periodText=p?(PERIOD_LABELS[mode]+' · '+p.anchor):'';
+ holder.textContent=[periodText,lastLoad?'Última carga: '+new Date(lastLoad).toLocaleDateString('es-ES'):''].filter(Boolean).join(' · ');
+}
 function yearToDate(month,building,useHistoric,cutDay){
  const year=month.slice(0,4),upTo=Number(month.slice(5,7)),acc=empty(),monthsUsed=[];
  for(let m=1;m<=upTo;m++){const key=year+'-'+String(m).padStart(2,'0');
@@ -270,5 +278,5 @@ function renderTopline(){
   ${toplineTile('RevPAR sin IVA (estimado)',revpar.now,amount,revparDelta)}
  </div><p class="note">La cifra del año anterior al mismo día es una reconstrucción desde fecha de reserva y estado final; no recupera cancelaciones ni cambios de importe posteriores. Ocupación, ADR y RevPAR dependen de las hipótesis editables más abajo. El acumulado del año está en el bloque «Evolución», con Acumulado año.</p>`;
 }
-const olderRender=render;render=function(){olderRender();renderEvolutionMain();compareCharts();renderKpi();renderHighlights();renderTopline()};
+const olderRender=render;render=function(){olderRender();renderEvolutionMain();compareCharts();renderKpi();renderHighlights();renderTopline();renderContextLine()};
 })();
