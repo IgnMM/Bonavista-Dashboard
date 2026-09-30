@@ -13,6 +13,24 @@ function renderSimulatedBanner(){
   holder.innerHTML=`<b>⚠ Datos inventados en esta pantalla</b><span>${parts.join(' y ')} son una simulación de prueba, no cifras reales de Bonavista. Hay que pedir a Pablo las exportaciones reales de esos periodos antes de usar estas cifras para nada. Esta carga de prueba es solo local en este navegador; nunca se sube a GitHub.</span>`;
 }
 function initBaseline(){}
+/* Merges by mes+edificio: filas nuevas se añaden, filas repetidas se actualizan con la versión
+   entrante (más reciente/reconstruida), y cualquier fila existente que no venga en el archivo
+   nuevo se conserva tal cual. Importar un archivo parcial o antiguo nunca borra histórico previo. */
+function mergeHistorico(existing,incoming){
+  const byKey=new Map();
+  for(const row of (existing?.rows||[]))byKey.set(row.month+'|'+row.building,row);
+  let added=0,updated=0;
+  for(const row of incoming.rows){const key=row.month+'|'+row.building;if(byKey.has(key))updated++;else added++;byKey.set(key,row)}
+  const rows=[...byKey.values()].sort((a,b)=>a.month===b.month?a.building.localeCompare(b.building):a.month.localeCompare(b.month));
+  const merged={
+    format:'bonavista-baseline-v1',
+    method:incoming.method||existing?.method,
+    generatedAt:incoming.generatedAt||existing?.generatedAt,
+    sources:[...(existing?.sources||[]),...(incoming.sources||[])],
+    rows
+  };
+  return {merged,added,updated,kept:rows.length-added-updated};
+}
 function wireHistoricoImport(){
   const chooseBtn=$('chooseHistorico'),fileInput=$('historicoFile'),doBtn=$('doImportHistorico'),nameEl=$('historicoFileName'),statusEl=$('historicoStatus');
   if(!chooseBtn)return;
@@ -26,12 +44,13 @@ function wireHistoricoImport(){
       const data=JSON.parse(await file.text());
       if(data.format!=='bonavista-baseline-v1'||!Array.isArray(data.rows))throw Error('No es un archivo de histórico válido');
       for(const row of data.rows){if(typeof row.month!=='string'||typeof row.building!=='string'||!Array.isArray(row.bookedByDay))throw Error('Fila de histórico dañada')}
-      localStorage.setItem(BASELINE_KEY,JSON.stringify(data));
-      historical=data;
-      const months=[...new Set(data.rows.map(r=>r.month))].sort();
-      statusEl.textContent='✓ Histórico importado: '+data.rows.length+' filas ('+(months[0]||'')+' a '+(months.at(-1)||'')+'). Ya se compara en Evolución y se incluirá en la próxima copia de seguridad.';
+      const {merged,added,updated,kept}=mergeHistorico(historical,data);
+      localStorage.setItem(BASELINE_KEY,JSON.stringify(merged));
+      historical=merged;
+      const months=[...new Set(merged.rows.map(r=>r.month))].sort();
+      statusEl.textContent='✓ Histórico combinado: '+added+' filas nuevas, '+updated+' actualizadas, '+kept+' ya existentes conservadas sin tocar. Total '+merged.rows.length+' filas ('+(months[0]||'')+' a '+(months.at(-1)||'')+'). Ya se compara en Evolución y se incluirá en la próxima copia de seguridad.';
       fileInput.value='';nameEl.textContent='Ningún archivo elegido';
-      if(typeof render==='function')render();
+      if(payload&&typeof render==='function')render();
     }catch(e){statusEl.textContent='No se pudo importar: '+e.message;statusEl.classList.add('error')}
     finally{doBtn.disabled=false}
   };
