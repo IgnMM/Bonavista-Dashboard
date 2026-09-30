@@ -50,6 +50,7 @@ const suggestions=knownCompetitorNames(db,list).filter(s=>!list.some(c=>c.name==
   <div class="history-row">${suggestions.length?`<label>Competidor existente <select id="compExisting"><option value="">Elegir de la lista…</option>${suggestions.map(s=>`<option value="${escape(s.name)}" data-city="${escape(s.city)}">${escape(s.name)}</option>`).join('')}</select></label>`:''}</div>
   <div class="history-row"><input id="compName" placeholder="Nombre del alojamiento competidor"><input id="compCity" placeholder="Ciudad" value="Barcelona"><select id="compBuilding"><option value="">Edificio Bonavista de referencia</option>${buildingNames.map(b=>`<option value="${escape(b)}">${escape(b)}</option>`).join('')}</select></div>
   <div class="history-row"><label>Noches <input id="compNights" type="number" min="1" max="30" value="2" style="width:60px"></label><label>Antelación (días) <input id="compLead" type="number" min="0" max="365" value="14" style="width:70px"></label><label>Personas <input id="compGuests" type="number" min="1" max="10" value="2" style="width:60px"></label><button class="ghost" id="compAdd" type="button">Añadir competidor</button></div>
+  <p class="note status hidden" id="compAddStatus"></p>
   <p class="note">Criterio confirmado con Pablo: mismo barrio, categoría de apartamento similar, tarifa flexible/cancelable, precio final con impuestos incluidos. Cada botón abre la búsqueda de esa plataforma para las mismas fechas; comprueba que la ficha encontrada es realmente comparable antes de guardar el precio.</p>
   ${list.length?list.map(c=>{
     const {checkin,checkout}=competitorDates(c);
@@ -69,7 +70,8 @@ const suggestions=knownCompetitorNames(db,list).filter(s=>!list.some(c=>c.name==
  });
  $m('compAdd')?.addEventListener('click',()=>{
   const name=$m('compName').value.trim(),city=$m('compCity').value.trim(),building=$m('compBuilding').value,nights=Number($m('compNights').value)||2,leadDays=Number($m('compLead').value)||0,guests=Number($m('compGuests').value)||2;
-  if(!name||!city||!building){alert('Completa nombre, ciudad y edificio de referencia');return}
+  const statusEl=$m('compAddStatus');
+  if(!name||!city||!building){if(statusEl){statusEl.textContent='Falta completar: '+[!name&&'nombre',!city&&'ciudad',!building&&'edificio de referencia'].filter(Boolean).join(', ')+'.';statusEl.classList.remove('hidden');statusEl.classList.add('error')}return}
   const updated=readCompetitors();updated.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,7),name,city,building,nights,leadDays,guests});saveCompetitors(updated);renderPriceCompetitors();
  });
  holder.querySelectorAll('[data-comp-delete]').forEach(btn=>btn.addEventListener('click',()=>{
