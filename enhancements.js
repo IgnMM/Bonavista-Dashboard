@@ -21,31 +21,14 @@ function initModel(){
   model.cancelled ??= null;
   model.priorMonth ??= null;
   model.priorYTD ??= null;
-  model.direct ??= 'Bonavista,Witbooking,Excliente';
   saveModel();
   showModel();
 }
 function saveModel(){localStorage.setItem(MODEL_KEY,JSON.stringify(model))}
 function showModel(){
-  const buildings=[...new Set(latest().map(x=>x.building))].sort();
-  $('assumptionControls').innerHTML=`<div class="assumption-grid">
-   <label>IVA supuesto sobre alojamiento (%)<input id="vat" type="number" min="0" max="30" step="0.1" value="${model.vat}"></label>
-   <label>Canales considerados directos<input id="direct" type="text" value="${safe(model.direct)}"></label>
-   <label>Noches canceladas (si se conocen)<input id="cancelled" type="number" min="0" step="1" value="${model.cancelled??''}" placeholder="Sin dato"></label>
-   </div><p class="assumption-note">Para ocupación y RevPAR, número de apartamentos observado en el fichero como punto de partida. Comprueba el inventario real y los bloqueos. ADR supone que «Precio alquiler» incluye el IVA indicado y excluye limpieza.</p>
-   <label class="assumption-note"><input id="cleaning" type="checkbox" ${model.cleaning?'checked':''}> Incluir limpieza final en la base de ADR y RevPAR (hipótesis editable)</label>
-   <div>${buildings.map(b=>`<div class="inventory-row"><b>${safe(b)}</b><label>Apartamentos disponibles<input class="units" data-building="${safe(b)}" type="number" min="0" step="1" value="${model.units[b]}"></label><label>Noches bloqueadas en el mes<input class="blocks" data-building="${safe(b)}" type="number" min="0" step="1" value="${model.blocks[b]}"></label></div>`).join('')}</div>`;
-  for(const id of ['vat','direct','cancelled'])$(id).addEventListener('change',()=>{
-    model.vat=Number($('vat').value);model.direct=$('direct').value;model.cleaning=$('cleaning').checked;
-    model.cancelled=$('cancelled').value===''?null:Number($('cancelled').value);
-    saveModel();render();
-  });
-  $('cleaning').addEventListener('change',()=>{model.cleaning=$('cleaning').checked;saveModel();render()});
-  document.querySelectorAll('.units,.blocks').forEach(input=>input.addEventListener('change',()=>{
-    const b=input.dataset.building;const n=Number(input.value);
-    if(input.classList.contains('units'))model.units[b]=n;else model.blocks[b]=n;
-    saveModel();render();
-  }));
+  // Panel de hipótesis editables retirado: IVA, inventario y venta directa ya son datos
+  // confirmados por Pablo (ver KNOWN_UNITS e isDirectChannel), no hipótesis que ajustar a mano.
+  if(!$('assumptionControls'))return;
 }
 function stayOverlap(item,month){
   if(!item.arrival||!item.departure)return 0;
@@ -63,8 +46,7 @@ function metrics(monthOverride,buildingOverride){
   const available=months.reduce((sum,m)=>{const [year,mo]=m.split('-').map(Number);const days=new Date(year,mo,0).getDate();return sum+present.reduce((a,b)=>a+Math.max(0,(Number(model.units[b])||0)*days-(Number(model.blocks[b])||0)),0)},0);
   const revenue=overnight/(1+Number(model.vat||0)/100);
   const rows=(monthOverride||buildingOverride)?latest().filter(x=>(!month||x.month===month)&&(!building||matchBuilding(x.building,building))):subset();const gross=rows.reduce((a,b)=>a+b.gross,0);
-  const direct=new Set(model.direct.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean));
-  const directGross=rows.filter(x=>direct.has(x.channel.toLowerCase())).reduce((a,b)=>a+b.gross,0);
+  const directGross=rows.filter(x=>isDirectChannel(x.channel)).reduce((a,b)=>a+b.gross,0);
   return {rows,months,occupied,available,adr:occupied?revenue/occupied:null,revpar:available?revenue/available:null,occupancy:available?occupied/available:null,direct:gross?directGross/gross:null,gross};
 }
 function chart(title,entries,formatter=money,ordered=false){

@@ -1,6 +1,9 @@
 
 let payload=null;const $=id=>document.getElementById(id);const euro=n=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);const fmt=n=>new Intl.NumberFormat('es-ES',{maximumFractionDigits:1}).format(n);const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 window.SELECTED_BUILDINGS=new Set();
+/* Confirmado por Pablo: directo es todo lo que no venga de Booking, Expedia, Airbnb u Oddo (agente). */
+const NON_DIRECT_CHANNEL_MARKERS=['booking','expedia','airbnb','oddo'];
+function isDirectChannel(name){return !NON_DIRECT_CHANNEL_MARKERS.some(p=>String(name||'').toLowerCase().includes(p))}
 function matchBuilding(name,building){return !building||(building instanceof Set?building.has(name):name===building)}
 function selectedBuilding(){return window.SELECTED_BUILDINGS.size?window.SELECTED_BUILDINGS:''}
 function buildingLabel(building){if(!building)return'Todos los edificios';const names=[...building];return names.length===1?names[0]:names.length+' edificios seleccionados'}
@@ -42,8 +45,7 @@ function distribution(rows,key,element,measure='gross',limit=10,pctOnly=false){c
 function renderSalesExtras(rows){
  const gross=rows.reduce((a,b)=>a+b.gross,0),n=rows.length;
  $('salesViewBase').textContent='Base: '+euro(gross)+' en '+fmt(n)+' reservas del periodo elegido.';
- const direct=new Set((model?.direct||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean));
- const directGross=rows.filter(x=>direct.has(x.channel.toLowerCase())).reduce((a,b)=>a+b.gross,0);
+ const directGross=rows.filter(x=>isDirectChannel(x.channel)).reduce((a,b)=>a+b.gross,0);
  $('directNote').textContent=gross?'Venta directa: '+fmt(directGross/gross*100)+' % del canal.':'';
  const cancelKnown=typeof model!=='undefined'&&model.cancelled!==null;
  $('ritmoNote').textContent=cancelKnown?'':'Ritmo de reservas: cancelaciones y pickup sin datos todavía; se completará con la exportación de canceladas y una segunda captura del mismo mes.';

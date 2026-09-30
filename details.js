@@ -8,7 +8,7 @@ function detailNumber(rows,key){
   if(key==='stay')return num(sum('nights')/count)+' noches';
   if(key==='guests'){const known=rows.filter(x=>x.guests!==null);return known.length?num(known.reduce((t,x)=>t+x.guests,0)/known.length):'—'}
   if(key==='lead')return num(sum('lead')/count)+' días';
-  if(key==='direct'){const channels=new Set(model.direct.split(',').map(x=>x.trim().toLowerCase()));return sum('gross')?pct(rows.filter(x=>channels.has(x.channel.toLowerCase())).reduce((t,x)=>t+x.gross,0)/sum('gross')):'—'}
+  if(key==='direct')return sum('gross')?pct(rows.filter(x=>isDirectChannel(x.channel)).reduce((t,x)=>t+x.gross,0)/sum('gross')):'—';
   if(['occupancy','adr','revpar'].includes(key)){
     const m=metrics();const result={occupancy:m.occupancy===null?'—':pct(m.occupancy),adr:m.adr===null?'—':money(m.adr),revpar:m.revpar===null?'—':money(m.revpar)};
     return result[key];
