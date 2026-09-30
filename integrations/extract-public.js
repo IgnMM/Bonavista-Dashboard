@@ -7,9 +7,12 @@ function ratingFromPage(document,platform){
  const structured=ratingFromJsonLd(document,platform);if(structured)return structured;
  if(platform==='Google'){
   // Google Maps exposes the star rating as an accessible role="img" label ("4,3 estrellas" / "4.3 stars"),
-  // not as visible text tied to a stable test-id; class names there are minified/unstable. The search
-  // snippet view does not reliably show a review count next to it, so count stays unset here.
-  const el=[...document.querySelectorAll('[role="img"]')].find(x=>/^[0-5][.,]\d\s*(estrellas|stars)/i.test(x.getAttribute('aria-label')||''));
+  // not as visible text tied to a stable test-id; class names there are minified/unstable. When the search
+  // is ambiguous (several nearby places), the page also shows OTHER listings' ratings as "N,N estrellas NNN
+  // reseñas" (count baked into the same label) in suggestion/review snippets; the main place's own badge is
+  // always the bare "N,N estrellas" with nothing after it, so that exact form is required, not just a prefix.
+  const els=[...document.querySelectorAll('[role="img"]')];
+  const el=els.find(x=>/^[0-5][.,]\d\s*(estrellas|stars)\s*$/i.test(x.getAttribute('aria-label')||''));
   if(!el)return null;
   const match=(el.getAttribute('aria-label')||'').match(/^([0-5][.,]\d)/);
   if(!match)return null;
