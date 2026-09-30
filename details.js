@@ -52,5 +52,4 @@ function renderDetailBreakdown(key){
   document.querySelectorAll('.detail-group-button').forEach(button=>button.addEventListener('click',()=>{selectedDetailGroup=selectedDetailGroup===button.dataset.group?null:button.dataset.group;renderDetailBreakdown(key)}));
   $('detailRows').querySelector('.detail-clear')?.addEventListener('click',()=>{selectedDetailGroup=null;renderDetailBreakdown(key)});
 }
-detail=openDetail;
-modelDetail=openDetail;
+window.detail=openDetail;

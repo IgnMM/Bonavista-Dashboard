@@ -168,17 +168,5 @@ async function showPickup(){
     card.querySelector('em').textContent=(deltaValue>=0?'+':'')+money(deltaValue)+' PVP desde '+new Date(previous.id).toLocaleDateString('es-ES')+' · comparar cobertura';
   }
 }
-function modelDetail(kind){
-  const building=selectedBuilding();
-  const months=[...new Set(latest().filter(x=>!building||matchBuilding(x.building,building)).map(x=>x.month))].sort();
-  const title={occupancy:'Ocupación',adr:'ADR sin IVA',revpar:'RevPAR sin IVA',direct:'Venta directa',cancel:'Cancelaciones',pickup:'Pickup',gross:'Ventas PVP'}[kind];
-  const result=months.map(month=>{
-    const m=metrics(month);
-    const calculated={occupancy:m.occupancy===null?'—':pct(m.occupancy),adr:m.adr===null?'—':money(m.adr),revpar:m.revpar===null?'—':money(m.revpar),direct:m.direct===null?'—':pct(m.direct),gross:money(m.gross),cancel:model.cancelled===null?'—':'Requiere canceladas por mes',pickup:'Requiere dos capturas'};
-    return `<tr><td>${safe(month)}</td><td>${safe(calculated[kind])}</td><td>${m.rows.length} reservas · ${num(m.occupied)} noches de estancia</td></tr>`;
-  }).join('');
-  $('detail').innerHTML=`<h2>${safe(title)} · desglose mensual</h2><p class="note">Las hipótesis de IVA, inventario, bloqueos y canales directos se editan arriba. Los datos ausentes se muestran como tales.</p><table style="width:100%;border-collapse:collapse"><thead><tr><th>Mes</th><th>Valor</th><th>Base</th></tr></thead><tbody>${result}</tbody></table>`;
-  $('detail').classList.remove('hidden');$('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
-}
 const previousSetup=setupFilters;
 setupFilters=function(data){previousSetup(data);initModel()};
