@@ -115,7 +115,7 @@ async function analyseFiles(bookFile,serviceFile){
   for(const row of rows){const id=String(row[idCol]||'').trim();if(!id)continue;serviceLines++;const concept=String(row[conceptCol]||'').trim(),amount=value(row[amountCol]);if(!services.has(id))services.set(id,new Map());const items=services.get(id);items.set(concept,(items.get(concept)||0)+amount)}
   const missing=[...bookings.keys()].filter(id=>!services.has(id)),orphan=[...services.keys()].filter(id=>!bookings.has(id));
   if(missing.length||orphan.length)throw Error(`Los archivos no coinciden: ${missing.length} reservas sin servicios y ${orphan.length} servicios sin reserva`);
-  for(const [id,b] of bookings){const components=services.get(id);b.service_total=[...components].reduce((s,[name,v])=>s+(name==='Total extras'?0:v),0);b.cleaning=[...components].reduce((s,[name,v])=>s+(name.includes('Limpieza final')?v:0),0);b.reconciliation_delta=Math.round((b.gross-(b.service_total-b.discount))*100)/100}
+  for(const [id,b] of bookings){const components=services.get(id);b.service_total=[...components].reduce((s,[name,v])=>s+(name==='Total extras'?0:v),0);b.cleaning=[...components].reduce((s,[name,v])=>s+(name.includes('Limpieza final')?v:0),0);b.reconciliation_delta=Math.round((b.gross-(b.service_total-b.discount))*100)/100;b.serviceItems=Object.fromEntries([...components].filter(([name])=>name!=='Total extras'))}
   const all=[...bookings.values()], items=all.filter(b=>b.status.toLowerCase()==='confirmed');
   if (!items.length) throw Error('No hay reservas confirmadas en esta exportación');
   const fileDate=bookFile.name.match(/(20\d{2})-(\d{2})-(\d{2})/);

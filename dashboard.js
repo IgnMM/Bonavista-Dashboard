@@ -40,7 +40,25 @@ function renderSalesExtras(rows){
  const cancelKnown=typeof model!=='undefined'&&model.cancelled!==null;
  $('ritmoNote').textContent=cancelKnown?'':'Ritmo de reservas: cancelaciones y pickup sin datos todavía; se completará con la exportación de canceladas y una segunda captura del mismo mes.';
 }
-function render(){const rows=subset(),n=rows.length,nights=rows.reduce((a,b)=>a+b.nights,0);$('coverage').textContent=n+' reservas · '+(nights?fmt(nights)+' noches':'sin noches');$('printMeta').textContent='Periodo: '+($('month').value||'mes más reciente')+' · Edificio: '+buildingLabel(selectedBuilding())+' · Reservas: '+n+' · Elaborado: '+new Date().toLocaleDateString('es-ES');distribution(rows,'channel','channels');distribution(rows,'building','buildings');distribution(rows,'country','countries','count',10,true);distribution(rows,'rate','rates');distribution(rows,'roomType','roomtypes');renderSalesExtras(rows);$('quality').textContent=`Datos de origen: ${payload.meta.channel_coverage}/${payload.meta.reservations} reservas con canal; ${payload.meta.excluded_reservations||0} reservas no confirmadas excluidas; ${payload.meta.date_warnings} diferencias entre fechas y noches; ${payload.meta.reconciliation_warnings} reservas cuyo total PVP no coincide con los conceptos del CSV menos el descuento registrado. Consultar a Pablo cualquier diferencia restante. La producción está agrupada provisionalmente por mes de llegada.`;$('detailOverlay').classList.add('hidden')}
+function renderServiceBreakdown(rows){
+ const holder=$('serviceBreakdown');if(!holder)return;
+ const rentalTotal=rows.reduce((s,r)=>s+(r.rental||0),0);
+ const conceptTotals={},buildingConcepts={};
+ for(const r of rows){
+  for(const [concept,amount] of Object.entries(r.serviceItems||{})){
+   if(!amount)continue;
+   conceptTotals[concept]=(conceptTotals[concept]||0)+amount;
+   (buildingConcepts[r.building]??={})[concept]=(buildingConcepts[r.building]?.[concept]||0)+amount;
+  }
+ }
+ const entries=Object.entries(conceptTotals).sort((a,b)=>b[1]-a[1]);
+ if(!entries.length){holder.innerHTML='<p class="note">Sin conceptos de servicios (limpieza, parking u otros) en el filtro actual.</p>';return}
+ const bars=[['Alquiler (base, sin estos conceptos)',rentalTotal],...entries],max=Math.max(1,...bars.map(([,v])=>v));
+ const buildings=Object.keys(buildingConcepts).sort(),concepts=entries.map(([name])=>name);
+ const table=buildings.length>1?`<table class="detail-table"><thead><tr><th>Edificio</th>${concepts.map(c=>`<th>${escape(c)}</th>`).join('')}</tr></thead><tbody>${buildings.map(b=>`<tr><td>${escape(b)}</td>${concepts.map(c=>`<td>${buildingConcepts[b][c]?euro(buildingConcepts[b][c]):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'';
+ holder.innerHTML=`<div class="section-bars">${bars.map(([name,v])=>`<div class="barrow"><span title="${escape(name)}">${escape(name)}</span><div class="track"><div class="fill" style="width:${Math.max(1,100*v/max)}%"></div></div><span class="right">${euro(v)}</span></div>`).join('')}</div>${table}<p class="note">Desglose de los conceptos del CSV de servicios sobre las reservas del filtro actual (edificio y periodo elegidos arriba). No todos los edificios tienen los mismos conceptos. Categorías provisionales: se revisan con Pablo.</p>`;
+}
+function render(){const rows=subset(),n=rows.length,nights=rows.reduce((a,b)=>a+b.nights,0);$('coverage').textContent=n+' reservas · '+(nights?fmt(nights)+' noches':'sin noches');$('printMeta').textContent='Periodo: '+($('month').value||'mes más reciente')+' · Edificio: '+buildingLabel(selectedBuilding())+' · Reservas: '+n+' · Elaborado: '+new Date().toLocaleDateString('es-ES');distribution(rows,'channel','channels');distribution(rows,'building','buildings');distribution(rows,'country','countries','count',10,true);distribution(rows,'rate','rates');distribution(rows,'roomType','roomtypes');renderSalesExtras(rows);renderServiceBreakdown(rows);$('quality').textContent=`Datos de origen: ${payload.meta.channel_coverage}/${payload.meta.reservations} reservas con canal; ${payload.meta.excluded_reservations||0} reservas no confirmadas excluidas; ${payload.meta.date_warnings} diferencias entre fechas y noches; ${payload.meta.reconciliation_warnings} reservas cuyo total PVP no coincide con los conceptos del CSV menos el descuento registrado. Consultar a Pablo cualquier diferencia restante. La producción está agrupada provisionalmente por mes de llegada.`;$('detailOverlay').classList.add('hidden')}
 $('salesViewMode')?.addEventListener('change',()=>{window.SALES_VIEW_MODE=$('salesViewMode').value;render()});
 $('detailClose')?.addEventListener('click',()=>$('detailOverlay').classList.add('hidden'));
 $('detailOverlay')?.addEventListener('click',e=>{if(e.target.id==='detailOverlay')$('detailOverlay').classList.add('hidden')});
