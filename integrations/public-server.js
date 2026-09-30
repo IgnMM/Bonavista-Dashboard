@@ -3,7 +3,7 @@
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const {flattenJsonLd,ratingFromJsonLd,ratingFromPage,categoriesFromPage,countFromText}=require('./extract-public');
 const CONFIG=path.join(__dirname,'public-pages.json');
-const PORT=Number(process.env.BONAVISTA_PORT||8765),ALLOWED_HOSTS=new Set(['www.booking.com','www.expedia.com','www.airbnb.com','www.google.com','maps.google.com']);
+const PORT=Number(process.env.BONAVISTA_PORT||8765),ALLOWED_HOSTS=new Set(['www.booking.com','www.expedia.com','www.expedia.es','www.airbnb.com','www.google.com','maps.google.com']);
 // Competitors are tracked to benchmark Bonavista, not scraped from Booking/Expedia: those
 // restrict automated access in their terms. Only Google's public map listing is read for them.
 const COMPETITOR_ALLOWED_PLATFORMS=new Set(['Google']);
@@ -36,7 +36,11 @@ async function refresh(){let playwright;try{playwright=require('playwright')}cat
  const skipped=competitorTasks.filter(c=>!COMPETITOR_ALLOWED_PLATFORMS.has(c.platform));
  for(const c of skipped)errors.push({platform:c.platform,building:c.competitor||c.building,error:'Plataforma no habilitada para competidores (solo Google): evita el riesgo de condiciones de uso de Booking/Expedia'});
  const tasks=[...ownTasks,...competitorTasks.filter(c=>COMPETITOR_ALLOWED_PLATFORMS.has(c.platform))];
- const browser=await playwright.chromium.launch({headless:true});
+ // Headless Chromium behaves differently enough from a real browser window that some sites
+ // (Expedia, in testing) block it outright even on a single, isolated request; a normal
+ // (non-headless) window is not evasion, just Playwright's other standard launch mode, and
+ // needs a real desktop session to open — set BONAVISTA_HEADFUL=0 to force headless back.
+ const browser=await playwright.chromium.launch({headless:process.env.BONAVISTA_HEADFUL==='0'});
  let reviews=[];
  try{
   // Parallel ACROSS sites (Booking/Expedia/Airbnb/Google all at once), but one request

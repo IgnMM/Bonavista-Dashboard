@@ -92,18 +92,20 @@ function showCharts(rows){
   ];
   $('charts').innerHTML=values.join('');
 }
-function nearestPoint(points,targetTime,toleranceDays){
-  let best=null,bestDiff=Infinity;
-  for(const p of points){const diff=Math.abs(new Date(p.date).getTime()-targetTime);if(diff<bestDiff&&diff<=toleranceDays*86400000){best=p;bestDiff=diff}}
-  return best;
-}
-function reviewMovement(points){
-  const last=points.at(-1);if(!last)return'';
-  const lastTime=new Date(last.date).getTime();
-  const monthAgo=nearestPoint(points.slice(0,-1),lastTime-30*86400000,10);
-  const yearAgo=nearestPoint(points.slice(0,-1),lastTime-365*86400000,30);
-  const fmt=(ref)=>ref?`${last.score-ref.score>=0?'+':''}${num(last.score-ref.score)} desde ${new Date(ref.date).toLocaleDateString('es-ES')}`:'sin captura de referencia';
-  return `<small>Vs. mes anterior: ${fmt(monthAgo)}</small><small>Vs. año anterior: ${fmt(yearAgo)}</small>`;
+function quarterIndex(dateStr){const d=new Date(dateStr);return d.getFullYear()*4+Math.floor(d.getMonth()/3)}
+function quarterLabel(idx){const year=Math.floor(idx/4),q=(idx%4)+1;return 'T'+q+' '+year}
+function renderReputationHistory(points,scale){
+  if(!points.length)return '<p class="note">Sin capturas todavía.</p>';
+  const sorted=points.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const withDelta=sorted.map((p,i)=>({...p,delta:i>0?Math.round((p.score-sorted[i-1].score)*100)/100:null}));
+  const endIdx=Math.max(quarterIndex(new Date().toISOString()),quarterIndex(sorted.at(-1).date));
+  const cols=[0,1,2,3].map(back=>endIdx-back);
+  const byQuarter={};for(const q of cols)byQuarter[q]=[];
+  for(const p of withDelta){const qi=quarterIndex(p.date);if(byQuarter[qi])byQuarter[qi].push(p)}
+  return `<div class="quarter-grid">${cols.map(q=>{
+    const items=byQuarter[q].slice().sort((a,b)=>b.date.localeCompare(a.date));
+    return `<div class="quarter-col"><div class="quarter-head">${safe(quarterLabel(q))}</div>${items.length?items.map(p=>`<div class="quarter-row${p.delta<0?' down':p.delta>0?' up':''}" title="${p.delta!==null?(p.delta<0?'Baja respecto a la captura anterior':'Sube respecto a la captura anterior'):'Primera captura registrada'}"><span class="qdate">${new Date(p.date).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'})}</span><span class="qscore">${num(p.score)}/${scale}${p.delta!==null?` <i>${p.delta>=0?'+':''}${num(p.delta)}</i>`:''}</span>${p.reviewCount?`<span class="qcount">${num(p.reviewCount)} op.</span>`:''}</div>`).join(''):'<div class="quarter-empty">Sin capturas</div>'}</div>`;
+  }).join('')}</div>`;
 }
 function showReviews(){
   const history=JSON.parse(localStorage.getItem(REVIEW_KEY)||'{}');
@@ -112,7 +114,7 @@ function showReviews(){
   const building=single;
   $('reviews').innerHTML='<div class="reviews-grid">'+[['Booking',10],['Expedia',10],['Airbnb',5],['Google',5]].map(([platform,scale])=>{
     const key=building+'|'+platform,points=history[key]||[],last=points.at(-1);
-    return `<div class="review-input"><label>${platform} · ${last?num(last.score)+'/'+scale:'sin dato'}${last?.reviewCount?' · '+num(last.reviewCount)+' opiniones':''}</label><small>${last?'Última captura: '+new Date(last.date).toLocaleDateString('es-ES')+(last.source?` · <a href="${safe(last.source)}" target="_blank" rel="noopener noreferrer">fuente</a>`:''):'Sin captura inicial'}</small>${reviewMovement(points)}<input type="number" step="0.1" min="0" max="${scale}" placeholder="Nota de 0 a ${scale}" data-platform="${platform}" data-scale="${scale}"><div class="assumption-grid"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Limpieza" data-category="cleaning" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Atención" data-category="staff" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Ubicación" data-category="location" data-owner="${platform}"></div>${last&&last.categories&&Object.keys(last.categories).length?`<small>Aspectos: ${Object.entries(last.categories).map(([k,v])=>`${safe(k)} ${num(v)}`).join(' · ')}</small>`:''}<button class="ghost" data-save-review="${platform}">Guardar nota</button></div>`
+    return `<div class="review-input"><label>${platform} · ${last?num(last.score)+'/'+scale:'sin dato'}${last?.reviewCount?' · '+num(last.reviewCount)+' opiniones':''}</label><small>${last?'Última captura: '+new Date(last.date).toLocaleDateString('es-ES')+(last.source?` · <a href="${safe(last.source)}" target="_blank" rel="noopener noreferrer">fuente</a>`:''):'Sin captura inicial'}</small>${renderReputationHistory(points,scale)}<input type="number" step="0.1" min="0" max="${scale}" placeholder="Nota de 0 a ${scale}" data-platform="${platform}" data-scale="${scale}"><div class="assumption-grid"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Limpieza" data-category="cleaning" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Atención" data-category="staff" data-owner="${platform}"><input type="number" min="0" max="${scale}" step="0.1" placeholder="Ubicación" data-category="location" data-owner="${platform}"></div>${last&&last.categories&&Object.keys(last.categories).length?`<small>Aspectos: ${Object.entries(last.categories).map(([k,v])=>`${safe(k)} ${num(v)}`).join(' · ')}</small>`:''}<button class="ghost" data-save-review="${platform}">Guardar nota</button></div>`
   }).join('')+'</div><p class="note">Selección: '+safe(building)+'. Las notas son por edificio: elige uno arriba para verlas (no se agregan varios edificios en una sola cifra). Introduce solo las categorías que publique cada plataforma; no se mezclan escalas de plataformas distintas.</p>';
   document.querySelectorAll('[data-save-review]').forEach(button=>button.addEventListener('click',()=>{
     const name=button.dataset.saveReview,input=document.querySelector(`[data-platform="${name}"]`),raw=input.value,score=Number(raw),scale=Number(input.dataset.scale);
@@ -139,7 +141,7 @@ function showCompetitorReviews(){
   if(!names.length){holder.innerHTML=`<p class="note">Sin competidores cargados todavía para ${safe(single)}${typeFilter||zoneFilter?' con este filtro':''}. Se añaden a mano en integrations/public-pages.json (array «competitors») y se cargan con «Actualizar mercado» o importando el JSON del lector.</p>`;return}
   holder.innerHTML='<div class="reviews-grid">'+names.map(name=>{
     const points=byCompetitor[name].slice().sort((a,b)=>a.date.localeCompare(b.date)),last=points.at(-1);
-    return `<div class="review-input"><label>${safe(name)} · ${num(last.score)}/5${last.reviewCount?' · '+num(last.reviewCount)+' opiniones':''}</label><small>${safe(last.businessType||'Tipo sin definir')}${last.postalCode?' · CP '+safe(last.postalCode):''}</small><small>Última captura: ${new Date(last.date).toLocaleDateString('es-ES')}${last.source?` · <a href="${safe(last.source)}" target="_blank" rel="noopener noreferrer">fuente</a>`:''}</small>${reviewMovement(points)}</div>`;
+    return `<div class="review-input"><label>${safe(name)} · ${num(last.score)}/5${last.reviewCount?' · '+num(last.reviewCount)+' opiniones':''}</label><small>${safe(last.businessType||'Tipo sin definir')}${last.postalCode?' · CP '+safe(last.postalCode):''}</small><small>Última captura: ${new Date(last.date).toLocaleDateString('es-ES')}${last.source?` · <a href="${safe(last.source)}" target="_blank" rel="noopener noreferrer">fuente</a>`:''}</small>${renderReputationHistory(points,5)}</div>`;
   }).join('')+'</div><p class="note">Solo Google: Booking y Expedia no se leen para terceros por sus condiciones de uso. Lista manual de competidores, no descubrimiento automático.</p>';
 }
 $('competitorTypeFilter')?.addEventListener('change',showCompetitorReviews);
