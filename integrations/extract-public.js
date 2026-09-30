@@ -1,12 +1,14 @@
 'use strict';
 /* Visible public page extraction. No logins, CAPTCHA solving, hidden endpoints or evasion. */
 function flattenJsonLd(value){if(Array.isArray(value))return value.flatMap(flattenJsonLd);if(!value||typeof value!=='object')return [];return [value,...(value['@graph']?flattenJsonLd(value['@graph']):[])];}
-function ratingFromJsonLd(document,platform){for(const el of document.querySelectorAll('script[type="application/ld+json"]')){let nodes;try{nodes=flattenJsonLd(JSON.parse(el.textContent))}catch{continue}for(const n of nodes){const a=n.aggregateRating;if(!a||!(/bonavista/i.test(String(n.name||''))))continue;const value=Number(a.ratingValue),max=Number(a.bestRating||(platform==='Airbnb'||platform==='Google'?5:10));if(value>=0&&value<=max&&max>=5&&max<=10)return {score:value,scale:max};}}return null;}
+function ratingFromJsonLd(document,platform){for(const el of document.querySelectorAll('script[type="application/ld+json"]')){let nodes;try{nodes=flattenJsonLd(JSON.parse(el.textContent))}catch{continue}for(const n of nodes){const a=n.aggregateRating;if(!a||!(/bonavista/i.test(String(n.name||''))))continue;const value=Number(a.ratingValue),max=Number(a.bestRating||(platform==='Airbnb'||platform==='Google'?5:10));if(value>=0&&value<=max&&max>=5&&max<=10){const result={score:value,scale:max};const count=Number(a.reviewCount||a.ratingCount);if(Number.isFinite(count)&&count>0)result.count=count;return result;}}}return null;}
+function countFromText(text){const m=text.match(/(\d[\d.,]{0,7})\s*(comentarios|opiniones|rese[nñ]as|reviews|ratings)/i);if(!m)return null;const n=Number(m[1].replace(/\./g,'').replace(',',''));return Number.isFinite(n)&&n>0?n:null}
 function ratingFromPage(document,platform){
  const structured=ratingFromJsonLd(document,platform);if(structured)return structured;
  if(platform==='Google'){
   // Google Maps exposes the star rating as an accessible role="img" label ("4,3 estrellas" / "4.3 stars"),
-  // not as visible text tied to a stable test-id; class names there are minified/unstable.
+  // not as visible text tied to a stable test-id; class names there are minified/unstable. The search
+  // snippet view does not reliably show a review count next to it, so count stays unset here.
   const el=[...document.querySelectorAll('[role="img"]')].find(x=>/^[0-5][.,]\d\s*(estrellas|stars)/i.test(x.getAttribute('aria-label')||''));
   if(!el)return null;
   const match=(el.getAttribute('aria-label')||'').match(/^([0-5][.,]\d)/);
@@ -15,8 +17,8 @@ function ratingFromPage(document,platform){
   return score>=0&&score<=5?{score}:null;
  }
  const selectors=platform==='Booking'?['[data-testid="review-score-right-component"] [data-testid="review-score-component"]','[data-testid="review-score-component"]','[data-testid="review-score-right-component"]']:platform==='Expedia'?['[data-stid="content-hotel-review-summary"]','[data-stid="property-reviews-summary"]','[data-stid="reviews-link"]']:['[data-testid="pdp-review-summary"]','[data-testid="pdp-reviews-highlight-banner-host-rating"]'];
- for(const selector of selectors){const element=document.querySelector(selector);if(!element)continue;const text=(element.getAttribute('aria-label')||'')+' '+(element.textContent||'');const match=platform==='Airbnb'?text.match(/\b([0-5][.,]\d{1,2})\b/):text.match(/\b(10(?:[.,]0)?|[0-9][.,][0-9]{1,2})\b/);if(match){const score=Number(match[1].replace(',','.'));if(score>=0&&score<=(platform==='Airbnb'?5:10))return {score};}}
+ for(const selector of selectors){const element=document.querySelector(selector);if(!element)continue;const text=(element.getAttribute('aria-label')||'')+' '+(element.textContent||'');const match=platform==='Airbnb'?text.match(/\b([0-5][.,]\d{1,2})\b/):text.match(/\b(10(?:[.,]0)?|[0-9][.,][0-9]{1,2})\b/);if(match){const score=Number(match[1].replace(',','.'));if(score>=0&&score<=(platform==='Airbnb'?5:10)){const count=countFromText(text);return count?{score,count}:{score}}}}
  return null;
 }
 function categoriesFromPage(document,platform){const categoryMap={cleaning:/cleanliness|limpieza|propreté/i,staff:/staff|personal|atención|service/i,location:/location|ubicación|emplacement/i};const selectors=platform==='Booking'?['[data-testid="review-subscore"]']:platform==='Airbnb'?['[data-testid="review-subcategory-row"]']:['[data-stid="reviews-subrating"]'];const result={};for(const selector of selectors)for(const node of document.querySelectorAll(selector)){const text=(node.getAttribute('aria-label')||'')+' '+(node.textContent||'');for(const [key,re] of Object.entries(categoryMap)){if(!re.test(text))continue;const values=[...text.matchAll(/\b(10(?:[.,]0)?|[0-9][.,][0-9]{1,2})\b/g)].map(m=>Number(m[1].replace(',','.')));const value=values.find(n=>n>=0&&n<=(platform==='Airbnb'?5:10));if(value!==undefined)result[key]=value;}}return result;}
-module.exports={flattenJsonLd,ratingFromJsonLd,ratingFromPage,categoriesFromPage};
+module.exports={flattenJsonLd,ratingFromJsonLd,ratingFromPage,categoriesFromPage,countFromText};
