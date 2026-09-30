@@ -13,6 +13,30 @@ function renderSimulatedBanner(){
   holder.innerHTML=`<b>⚠ Datos inventados en esta pantalla</b><span>${parts.join(' y ')} son una simulación de prueba, no cifras reales de Bonavista. Hay que pedir a Pablo las exportaciones reales de esos periodos antes de usar estas cifras para nada. Esta carga de prueba es solo local en este navegador; nunca se sube a GitHub.</span>`;
 }
 function initBaseline(){}
+function wireHistoricoImport(){
+  const chooseBtn=$('chooseHistorico'),fileInput=$('historicoFile'),doBtn=$('doImportHistorico'),nameEl=$('historicoFileName'),statusEl=$('historicoStatus');
+  if(!chooseBtn)return;
+  chooseBtn.onclick=()=>fileInput.click();
+  fileInput.addEventListener('change',event=>{const file=event.target.files[0];nameEl.textContent=file?file.name:'Ningún archivo elegido';doBtn.disabled=!file;statusEl.classList.remove('error');statusEl.textContent=''});
+  doBtn.onclick=async()=>{
+    const file=fileInput.files[0];if(!file)return;
+    doBtn.disabled=true;statusEl.classList.remove('error');statusEl.textContent='Leyendo el archivo…';
+    try{
+      if(file.size>25e6)throw Error('Archivo demasiado grande');
+      const data=JSON.parse(await file.text());
+      if(data.format!=='bonavista-baseline-v1'||!Array.isArray(data.rows))throw Error('No es un archivo de histórico válido');
+      for(const row of data.rows){if(typeof row.month!=='string'||typeof row.building!=='string'||!Array.isArray(row.bookedByDay))throw Error('Fila de histórico dañada')}
+      localStorage.setItem(BASELINE_KEY,JSON.stringify(data));
+      historical=data;
+      const months=[...new Set(data.rows.map(r=>r.month))].sort();
+      statusEl.textContent='✓ Histórico importado: '+data.rows.length+' filas ('+(months[0]||'')+' a '+(months.at(-1)||'')+'). Ya se compara en Evolución y se incluirá en la próxima copia de seguridad.';
+      fileInput.value='';nameEl.textContent='Ningún archivo elegido';
+      if(typeof render==='function')render();
+    }catch(e){statusEl.textContent='No se pudo importar: '+e.message;statusEl.classList.add('error')}
+    finally{doBtn.disabled=false}
+  };
+}
+wireHistoricoImport();
 function previousYearComparison(){
   if(!payload||!historical)return null;
   const current=($('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1));
