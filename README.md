@@ -1,6 +1,6 @@
 # Bonavista Dashboard
 
-Prototipo estático para validar los indicadores de Bonavista Apartments. Se abre desde GitHub Pages o mediante `index.html` en un navegador compatible. Pablo solo selecciona las dos exportaciones de Bookypro: reservas `.xlsx` y servicios `.csv`. No necesita Python ni instalar paquetes.
+Prototipo estático para validar los indicadores de Bonavista Apartments. Se abre desde GitHub Pages o mediante `index.html` en un navegador compatible. Pablo solo selecciona las dos exportaciones de BOOKIPRO: reservas `.xlsx` y servicios `.csv`. No necesita Python ni instalar paquetes.
 
 ## Publicación
 

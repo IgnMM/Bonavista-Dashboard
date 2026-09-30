@@ -1,5 +1,5 @@
 /* Real public review scores, captured manually on 2026-09-26 from each platform's public listing page.
-   Safe to publish: these are the platforms' own public ratings, not derived from Bookypro reservations.
+   Safe to publish: these are the platforms' own public ratings, not derived from BOOKIPRO reservations.
    Re-running this seed is harmless (market.js dedupes by platform+building+source, only new scores are stored). */
 (function(){
   const CAPTURED = '2026-09-26T12:00:00Z';

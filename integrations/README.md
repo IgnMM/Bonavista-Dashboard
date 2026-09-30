@@ -15,7 +15,7 @@ npx playwright install chromium
 npm start
 ```
 
-Esta prueba local no constituye el despliegue para Pablo. Las reservas Bookypro no se envían al lector. La consulta puede fallar según cambios en cada página o limitaciones de acceso; aún no ha sido posible verificarla de extremo a extremo sobre las webs reales desde este entorno. La arquitectura final requiere un servicio alojado y acceso restringido; GitHub Pages por sí solo no ejecuta este lector.
+Esta prueba local no constituye el despliegue para Pablo. Las reservas BOOKIPRO no se envían al lector. La consulta puede fallar según cambios en cada página o limitaciones de acceso; aún no ha sido posible verificarla de extremo a extremo sobre las webs reales desde este entorno. La arquitectura final requiere un servicio alojado y acceso restringido; GitHub Pages por sí solo no ejecuta este lector.
 
 Booking, Expedia y Airbnb restringen el acceso automatizado en sus condiciones públicas. La lectura puede ser técnicamente posible, pero antes de activar una fuente Bonavista debe elegir conscientemente el método de obtención, con preferencia por una exportación o proveedor que ya utilice su equipo. Se puede excluir cualquier plataforma quitando sus filas de `public-pages.json`.
 

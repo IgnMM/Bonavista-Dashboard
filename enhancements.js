@@ -1,4 +1,4 @@
-/* Explicit, editable modelling assumptions layered over Bookypro data. */
+/* Explicit, editable modelling assumptions layered over BOOKIPRO data. */
 const MODEL_KEY='bonavista-model-v1', REVIEW_KEY='bonavista-reviews-v1';
 let model=JSON.parse(localStorage.getItem(MODEL_KEY)||'{}');
 const money=n=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
