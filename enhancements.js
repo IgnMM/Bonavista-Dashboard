@@ -127,7 +127,7 @@ render=function(){
   $('quality').textContent+=' Ocupación estimada con los apartamentos observados en el fichero y sin estancias que empezaron antes del periodo exportado.'+(m.occupancy>1?' Aviso: ocupación superior al 100%; revisa el inventario, los bloqueos o las noches.':'');
 };
 async function showPickup(){
-  const snapshotKey=$('snapshots').value, selection=$('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1), building=selectedBuilding();
+  const snapshotKey=$('snapshots').value, selection=$('month').value||defaultAnchorMonth(), building=selectedBuilding();
   const list=await listSnapshots().catch(()=>[]);
   const currentIndex=snapshotKey?list.findIndex(x=>x.id===snapshotKey):0;
   if(currentIndex<0)return;
@@ -138,7 +138,7 @@ async function showPickup(){
   const delta=now.reduce((s,x)=>s+x.nights,0)-before.reduce((s,x)=>s+x.nights,0);
   const deltaValue=now.reduce((s,x)=>s+x.gross,0)-before.reduce((s,x)=>s+x.gross,0);
   const card=document.querySelector('[data-metric="pickup"]');
-  if(card && selection===($('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1)) && buildingsEqual(building,selectedBuilding())){
+  if(card && selection===($('month').value||defaultAnchorMonth()) && buildingsEqual(building,selectedBuilding())){
     card.querySelector('strong').textContent=(delta>=0?'+':'')+num(delta)+' noches';
     card.querySelector('em').textContent=(deltaValue>=0?'+':'')+money(deltaValue)+' PVP desde '+new Date(previous.id).toLocaleDateString('es-ES')+' · comparar cobertura';
   }

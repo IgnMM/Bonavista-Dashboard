@@ -39,7 +39,7 @@ function wireHistoricoImport(){
 wireHistoricoImport();
 function previousYearComparison(){
   if(!payload||!historical)return null;
-  const current=($('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1));
+  const current=($('month').value||defaultAnchorMonth());
   if(!current)return null;
   const previous=String(Number(current.slice(0,4))-1)+current.slice(4);
   const building=selectedBuilding();
@@ -99,7 +99,7 @@ function renderPace(){
 function renderHistoricalTrends(){
   const holder=$('historicalTrends');
   if(!historical){holder.innerHTML='<h2>Producción mensual · evolución</h2><p class="note">Importa el histórico agregado para ver las series de años anteriores.</p>';return}
-  const building=selectedBuilding(),year=Number(($('month').value||[...new Set(latest().map(x=>x.month))].sort().at(-1)||'2026').slice(0,4));
+  const building=selectedBuilding(),year=Number(($('month').value||defaultAnchorMonth()||'2026').slice(0,4));
   const years=[year-2,year-1,year],current=latest().filter(x=>!building||matchBuilding(x.building,building));
   const series=years.map(y=>Array.from({length:12},(_,i)=>{
     const month=`${y}-${String(i+1).padStart(2,'0')}`;
