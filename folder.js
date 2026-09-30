@@ -49,7 +49,7 @@ async function requestFolderPermission(handle){
   if(perm==='granted'){window.BONAVISTA_FOLDER=handle;return true}
   return false;
 }
-function folderVersionFilename(iso){return 'Bonavista-Dashboard_'+iso.replace(/:/g,'').replace(/\..+/,'').replace('T','_')+'.bonavista'}
+function folderVersionFilename(iso){return typeof dashboardCopyFilename==='function'?dashboardCopyFilename(iso):'Copia de dashboard '+iso.replace(/:/g,'-').replace(/\..+/,'').replace('T',' ')+'.bonavista'}
 async function listSavedVersions(root){
   const dir=await ensureSubfolder(root,SAVED_SUBFOLDER);
   const files=[];

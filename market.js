@@ -73,7 +73,7 @@ const suggestions=knownCompetitorNames(db,list).filter(s=>!list.some(c=>c.name==
   const updated=readCompetitors();updated.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,7),name,city,building,nights,leadDays,guests});saveCompetitors(updated);renderPriceCompetitors();
  });
  holder.querySelectorAll('[data-comp-delete]').forEach(btn=>btn.addEventListener('click',()=>{
-  if(!confirm('¿Quitar este competidor de la lista activa? Sus precios ya guardados se conservan en el histórico y la copia de seguridad, y podrás volver a añadirlo desde el desplegable «Competidor existente».'))return;
+  if(!confirm('¿Quitar este competidor de la lista activa? Sus precios ya guardados se conservan en el histórico y la copia de dashboard, y podrás volver a añadirlo desde el desplegable «Competidor existente».'))return;
   saveCompetitors(readCompetitors().filter(c=>c.id!==btn.dataset.compDelete));renderPriceCompetitors();
  }));
  holder.querySelectorAll('[data-comp-save]').forEach(btn=>btn.addEventListener('click',()=>{

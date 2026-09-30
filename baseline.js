@@ -1,6 +1,42 @@
-/* Historical comparison is optional and local. Do not put source exports in a public repository. */
+/* Historical comparison is optional and local. Do not put source exports in a public repository.
+   Vive en IndexedDB, no en localStorage: el histórico agregado (varios años, con desgloses por
+   canal/tarifa/país/día) puede pesar varios MB, y localStorage tiene un límite típico de 5-10 MB
+   por sitio que se supera fácilmente y hace fallar el guardado con "exceeded the quota". */
 const BASELINE_KEY='bonavista-baseline-v1';
-let historical=window.BONAVISTA_BASELINE||JSON.parse(localStorage.getItem(BASELINE_KEY)||'null');
+const BASELINE_DB='bonavista-baseline-db-v1';
+let historical=window.BONAVISTA_BASELINE||null;
+function baselineDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open(BASELINE_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('baseline');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function loadHistoricalFromDb(){
+  try{
+    const db=await baselineDb();
+    const value=await new Promise((resolve,reject)=>{const t=db.transaction('baseline');const q=t.objectStore('baseline').get('current');q.onsuccess=()=>resolve(q.result||null);q.onerror=()=>reject(q.error)});
+    db.close();
+    return value;
+  }catch(e){return null}
+}
+async function saveHistoricalToDb(data){
+  const db=await baselineDb();
+  await new Promise((resolve,reject)=>{const t=db.transaction('baseline','readwrite');t.objectStore('baseline').put(data,'current');t.oncomplete=resolve;t.onerror=()=>reject(t.error)});
+  db.close();
+}
+/* Al abrir: recupera el histórico de IndexedDB, y si queda algo de una versión antigua guardada
+   en localStorage (antes de este cambio), lo migra sin perderlo y libera ese espacio. */
+async function initHistorical(){
+  if(window.BONAVISTA_BASELINE)return;
+  historical=await loadHistoricalFromDb();
+  const legacy=localStorage.getItem(BASELINE_KEY);
+  if(legacy){
+    try{
+      const parsed=JSON.parse(legacy);
+      if(parsed&&Array.isArray(parsed.rows)){
+        const {merged}=mergeHistorico(historical,parsed);
+        historical=merged;
+        await saveHistoricalToDb(historical);
+      }
+    }catch(e){}
+    try{localStorage.removeItem(BASELINE_KEY)}catch(e){}
+  }
+}
 function renderSimulatedBanner(){
   const holder=document.getElementById('simulatedBanner');if(!holder)return;
   const historicalMonths=[...new Set((historical?.rows||[]).filter(x=>x.simulated).map(x=>x.month))];
@@ -42,14 +78,14 @@ function wireHistoricoImport(){
     try{
       if(file.size>25e6)throw Error('Archivo demasiado grande');
       const data=JSON.parse(await file.text());
-      if(data.format&&data.format.startsWith('bonavista-dashboard-backup'))throw Error('Esto es una copia de seguridad, no un archivo de histórico: usa «Elegir archivo de copia…» + «Restaurar» más arriba, no este botón.');
+      if(data.format&&data.format.startsWith('bonavista-dashboard-backup'))throw Error('Esto es una copia de dashboard, no un archivo de histórico: usa «Elegir archivo de copia…» + «Restaurar» más arriba, no este botón.');
       if(data.format!=='bonavista-baseline-v1'||!Array.isArray(data.rows))throw Error('No es un archivo de histórico válido');
       for(const row of data.rows){if(typeof row.month!=='string'||typeof row.building!=='string'||!Array.isArray(row.bookedByDay))throw Error('Fila de histórico dañada')}
       const {merged,added,updated,kept}=mergeHistorico(historical,data);
-      localStorage.setItem(BASELINE_KEY,JSON.stringify(merged));
+      await saveHistoricalToDb(merged);
       historical=merged;
       const months=[...new Set(merged.rows.map(r=>r.month))].sort();
-      statusEl.textContent='✓ Histórico combinado: '+added+' filas nuevas, '+updated+' actualizadas, '+kept+' ya existentes conservadas sin tocar. Total '+merged.rows.length+' filas ('+(months[0]||'')+' a '+(months.at(-1)||'')+'). Ya se compara en Evolución y se incluirá en la próxima copia de seguridad.';
+      statusEl.textContent='✓ Histórico combinado: '+added+' filas nuevas, '+updated+' actualizadas, '+kept+' ya existentes conservadas sin tocar. Total '+merged.rows.length+' filas ('+(months[0]||'')+' a '+(months.at(-1)||'')+'). Ya se compara en Evolución y se incluirá en la próxima copia de dashboard.';
       fileInput.value='';nameEl.textContent='Ningún archivo elegido';
       if(typeof saveVersionToFolderIfConnected==='function')await saveVersionToFolderIfConnected();
       if(payload&&typeof render==='function')render();
