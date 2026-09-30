@@ -17,6 +17,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;padding:0}
 @media print{.sticky-bar{position:static;box-shadow:none}.multiselect-panel{display:none!important}}
 .snapshot-banner{background:#FFF3CD;border:2px solid #cb9654;color:#5c4413;border-radius:12px;padding:12px 18px;margin:14px 0;font-size:13px;font-weight:700}.snapshot-banner a,.snapshot-banner button{margin-left:10px;font-weight:700}.snapshot-banner.hidden{display:none}
+.market-disclaimer{background:#FFF3CD;border:2px solid #cb9654;color:#5c4413;border-radius:12px;padding:12px 18px;margin:10px 0}
 #contextLine.context-alert{background:#E4042C;color:#fff;padding:7px 12px;border-radius:8px;font-weight:800;animation:context-pulse 1.6s ease-in-out 1}#contextLine.context-alert button{margin-left:10px;background:#fff;color:#E4042C;border:0;border-radius:6px;padding:4px 9px;font-weight:800;cursor:pointer;font-size:11px}
 @keyframes context-pulse{0%{box-shadow:0 0 0 0 #E4042C55}70%{box-shadow:0 0 0 8px #E4042C00}100%{box-shadow:0 0 0 0 #E4042C00}}
 .pace-month.selected:not(.current){background:#F1EFEE;border-color:#B6AAAD}.pace-month.selected:not(.current) .pace-month-bar{opacity:.85}
@@ -107,13 +108,23 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 <details class="panel section-toggle"><summary>Reservas y ritmo <small>Estancia, ocupantes, antelación y cancelaciones; gráficos comparados con el mismo periodo del año anterior.</small></summary><div class="section charts" id="charts"></div></details>
 <div class="block-header"><span class="block-number">4</span><div><h2>Mercado y reputación</h2><p class="note">Valoraciones en plataformas y precios comparables de la competencia; no proceden de las reservas de Bonavista.</p></div></div>
 <div class="panel market-panel">
-<h3>Reputación</h3><p class="note">Las notas se conservan solo cuando cambia su valor; la actualización automática se activará cuando el servicio de mercado esté configurado.</p><div id="reviews"></div>
+<h3>Reputación</h3><p class="note">Las notas se conservan solo cuando cambia su valor. Piloto de lectura automática activo — detalles y limitaciones más abajo, junto a «Actualizar mercado».</p><div id="reviews"></div>
 <h3>Reputación de la competencia</h3><p class="note">Lista manual de competidores por edificio, solo con nota de Google (Booking y Expedia quedan fuera por sus condiciones de uso). Se añaden en <code>integrations/public-pages.json</code>.</p>
 <div class="history-row"><label>Tipo <select id="competitorTypeFilter"><option value="">Todos los tipos</option></select></label><label>Código postal <select id="competitorZoneFilter"><option value="">Todos los códigos postales</option></select></label></div>
 <div id="competitorReviews"></div>
-<h3>Precios de mercado</h3><p class="note">Capturas a demanda; se guardan solo precios distintos para fechas, estancias y ocupación comparables.</p><button id="marketRefresh" class="market-refresh-btn">Actualizar mercado</button><p id="marketStatus" class="note" role="status">La actualización automática se activará al conectar el servicio de mercado.</p><label class="market-import">Importar respuesta de proveedor (.json) <input id="marketFile" type="file" accept=".json"></label><p id="marketCount" class="mini"></p><div id="marketTable"></div>
+<h3>Precios de mercado</h3><p class="note">Capturas a demanda; se guardan solo precios distintos para fechas, estancias y ocupación comparables.</p><button id="marketRefresh" class="market-refresh-btn">Actualizar mercado</button><p id="marketStatus" class="note" role="status">Pulsa para leer las notas públicas de Booking, Expedia, Airbnb y Google.</p>
+<p class="note market-disclaimer">⚠ <b>Piloto, no producción.</b> Este botón visita en directo las fichas públicas de Bonavista en Booking, Expedia, Airbnb y Google (sin iniciar sesión, sin API) y lee la nota visible. No siempre funciona: Booking y Expedia restringen el acceso automatizado en sus condiciones de uso y hoy bloquean la lectura (Booking corta la página, Expedia responde «demasiadas peticiones»); Airbnb y Google funcionan parcialmente. Es una decisión consciente de riesgo, no una integración oficial — a revisar con Pablo si se mantiene activa.</p>
+<label class="market-import">Importar respuesta de proveedor (.json) <input id="marketFile" type="file" accept=".json"></label><p id="marketCount" class="mini"></p><div id="marketTable"></div>
 </div>
 </div><p class="footer">BONAVISTA · Los archivos Bookypro se procesan en este navegador; el servicio de mercado se consultará al pulsar el botón cuando esté activo.</p>
 <div id="detailOverlay" class="detail-overlay hidden"><div class="detail-modal"><button id="detailClose" class="ghost" type="button">Cerrar ✕</button><div class="panel detail" id="detail"></div></div></div>
 </div>
-<script src="vendor/jszip.min.js"></script><script src="parser.js"></script><script src="storage.js"></script><script src="portfolio.js"></script><script src="dashboard.js"></script><script src="enhancements.js"></script><script src="details.js"></script><script src="baseline.js"></script><script src="market.js"></script><script src="reviews-seed.js"></script><script src="comparative.js"></script></body></html>
+<script src="vendor/jszip.min.js"></script><script src="parser.js"></script><script src="storage.js"></script><script src="portfolio.js"></script><script src="dashboard.js"></script><script src="enhancements.js"></script><script src="details.js"></script><script src="baseline.js"></script>
+<script>
+// Piloto (2026-09-30): lector local que Ignacio ejecuta en su portátil durante la demo con Pablo.
+// Solo funciona si ese servicio está corriendo en 127.0.0.1:8765; si no, el botón falla con un
+// mensaje claro ("El servicio de mercado no responde") en vez de quedar oculto. Pablo decide si
+// esto se mantiene activo o se retira tras la demo.
+window.BONAVISTA_MARKET_ENDPOINT='http://127.0.0.1:8765/api/market-refresh';
+</script>
+<script src="market.js"></script><script src="reviews-seed.js"></script><script src="comparative.js"></script></body></html>

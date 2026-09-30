@@ -2,7 +2,7 @@
 
 Este lector se ejecutó como prototipo local de desarrollo. **Pablo no tendrá que instalarlo ni ejecutar comandos**: el servicio final se alojará y administrará con el dashboard. No se utilizan API ni credenciales de Booking, Expedia o Airbnb. El lector visita las fichas públicas enumeradas en `public-pages.json`, intenta leer la nota global y categorías visibles y devuelve por separado los errores. No inicia sesión ni intenta superar bloqueos de acceso. Las URL son fichas encontradas en buscadores y deben cotejarse con Pablo, especialmente cuando una plataforma tiene varias fichas por apartamento.
 
-Las fichas se leen **en paralelo** (hasta `BONAVISTA_CONCURRENCY`, 4 por defecto), cada una en su propia pestaña del mismo navegador, no una detrás de otra.
+Las fichas se leen **en paralelo entre plataformas distintas** (Booking, Expedia, Airbnb y Google a la vez, cada una en su propia pestaña), pero **una detrás de otra dentro de la misma plataforma** (con una pequeña pausa entre fichas): pedir varias fichas de Booking o Expedia a la vez hizo que Expedia respondiera con HTTP 429 (demasiadas peticiones) en la primera prueba real.
 
 ## Competencia (benchmark)
 

@@ -4,6 +4,16 @@ function flattenJsonLd(value){if(Array.isArray(value))return value.flatMap(flatt
 function ratingFromJsonLd(document,platform){for(const el of document.querySelectorAll('script[type="application/ld+json"]')){let nodes;try{nodes=flattenJsonLd(JSON.parse(el.textContent))}catch{continue}for(const n of nodes){const a=n.aggregateRating;if(!a||!(/bonavista/i.test(String(n.name||''))))continue;const value=Number(a.ratingValue),max=Number(a.bestRating||(platform==='Airbnb'||platform==='Google'?5:10));if(value>=0&&value<=max&&max>=5&&max<=10)return {score:value,scale:max};}}return null;}
 function ratingFromPage(document,platform){
  const structured=ratingFromJsonLd(document,platform);if(structured)return structured;
+ if(platform==='Google'){
+  // Google Maps exposes the star rating as an accessible role="img" label ("4,3 estrellas" / "4.3 stars"),
+  // not as visible text tied to a stable test-id; class names there are minified/unstable.
+  const el=[...document.querySelectorAll('[role="img"]')].find(x=>/^[0-5][.,]\d\s*(estrellas|stars)/i.test(x.getAttribute('aria-label')||''));
+  if(!el)return null;
+  const match=(el.getAttribute('aria-label')||'').match(/^([0-5][.,]\d)/);
+  if(!match)return null;
+  const score=Number(match[1].replace(',','.'));
+  return score>=0&&score<=5?{score}:null;
+ }
  const selectors=platform==='Booking'?['[data-testid="review-score-right-component"] [data-testid="review-score-component"]','[data-testid="review-score-component"]','[data-testid="review-score-right-component"]']:platform==='Expedia'?['[data-stid="content-hotel-review-summary"]','[data-stid="property-reviews-summary"]','[data-stid="reviews-link"]']:['[data-testid="pdp-review-summary"]','[data-testid="pdp-reviews-highlight-banner-host-rating"]'];
  for(const selector of selectors){const element=document.querySelector(selector);if(!element)continue;const text=(element.getAttribute('aria-label')||'')+' '+(element.textContent||'');const match=platform==='Airbnb'?text.match(/\b([0-5][.,]\d{1,2})\b/):text.match(/\b(10(?:[.,]0)?|[0-9][.,][0-9]{1,2})\b/);if(match){const score=Number(match[1].replace(',','.'));if(score>=0&&score<=(platform==='Airbnb'?5:10))return {score};}}
  return null;
