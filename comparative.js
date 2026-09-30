@@ -219,32 +219,72 @@ function renderKpi(){
   return `<button class="card" onclick="detail('${key}')"><span>${safe(label)}</span><strong>${now===null?'—':safe(fmt(now))}</strong><em>${safe(caption)}</em><small class="yoy">${safe(deltaText)}</small></button>`;
  }).join('');
 }
+/* "Lo más destacado" busca cambios de tendencia reales frente al año anterior (mismo punto de
+   corte): variaciones de doble dígito en ventas, ADR, RevPAR, ocupación, venta directa o mezcla
+   de canales. Si no hay histórico o nada supera el umbral, cae a datos informativos del periodo. */
 function computeHighlights(){
  if(!payload)return[];
  const building=selectedBuilding(),month=$('month').value||defaultAnchorMonth();
  if(!month)return[];
  const rows=subset(),bullets=[];
- const share=(key)=>{const totals={};for(const r of rows)totals[r[key]]=(totals[r[key]]||0)+r.gross;const total=rows.reduce((s,r)=>s+r.gross,0)||1;const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);return sorted.length?{name:sorted[0][0],pct:sorted[0][1]/total}:null};
- if(!building){const top=share('building');if(top)bullets.push({text:`${top.name} lidera la producción con ${percent(top.pct)} del total del periodo.`,kind:'info'})}
- const topChannel=share('channel');if(topChannel)bullets.push({text:`${topChannel.name} es el canal con más producción: ${percent(topChannel.pct)} del PVP.`,kind:'info'});
  const prev=monthEarlier(month,-12),day=asOfDay(month);
  if(hasHistory(prev,building)){
   const now=current(month,building),before=historic(prev,building,day);
-  if(before.gross>0){const delta=(now.gross-before.gross)/before.gross;bullets.push({text:`Ventas PVP ${delta>=0?'sube':'baja'} un ${percent(Math.abs(delta))} frente al mismo día del año anterior.`,kind:delta>=0?'good':'bad'})}
+  const pushRel=(label,nowVal,beforeVal,fmt,threshold,goodIfUp=true)=>{
+   if(nowVal===null||beforeVal===null||!beforeVal)return;
+   const delta=(nowVal-beforeVal)/beforeVal;
+   if(Math.abs(delta)<threshold)return;
+   bullets.push({text:`${label} ${delta>=0?'sube':'baja'} un ${percent(Math.abs(delta))} frente al mismo punto del año anterior (${fmt(beforeVal)} → ${fmt(nowVal)}).`,kind:(delta>=0)===goodIfUp?'good':'bad',mag:Math.abs(delta)});
+  };
+  const pushPP=(label,nowVal,beforeVal,thresholdPP,goodIfUp=true)=>{
+   if(nowVal===null||beforeVal===null)return;
+   const deltaPP=(nowVal-beforeVal)*100;
+   if(Math.abs(deltaPP)<thresholdPP)return;
+   bullets.push({text:`${label} ${deltaPP>=0?'sube':'baja'} ${numeric(Math.abs(deltaPP))} puntos frente al año anterior (${percent(beforeVal)} → ${percent(nowVal)}).`,kind:(deltaPP>=0)===goodIfUp?'good':'bad',mag:Math.abs(deltaPP)/10});
+  };
+  pushRel('Ventas PVP',now.gross,before.gross,amount,0.10);
+  const adr=monthlyValue(month,building,'adr'),adrRef=adr.cut??adr.final;
+  pushRel('El ADR',adr.now,adrRef,amount,0.10);
+  const revpar=monthlyValue(month,building,'revpar'),revparRef=revpar.cut??revpar.final;
+  pushRel('El RevPAR',revpar.now,revparRef,amount,0.10);
+  const occ=monthlyValue(month,building,'occupancy'),occRef=occ.cut??occ.final;
+  pushPP('La ocupación',occ.now,occRef,5);
+  const direct=monthlyValue(month,building,'direct'),directRef=direct.cut??direct.final;
+  pushPP('La venta directa',direct.now,directRef,5);
   const leadNow=now.bookings?now.leadTotal/now.bookings:null,leadBefore=before.bookings?before.leadTotal/before.bookings:null;
-  if(leadNow!==null&&leadBefore>0){const d=(leadNow-leadBefore)/leadBefore;if(Math.abs(d)>=0.1)bullets.push({text:`La antelación media ${d>=0?'sube':'baja'} un ${percent(Math.abs(d))}: reservas ${d>=0?'con más':'de más última hora'} respecto al año anterior.`,kind:'info'})}
+  if(leadNow!==null&&leadBefore){const d=(leadNow-leadBefore)/leadBefore;if(Math.abs(d)>=0.15)bullets.push({text:`La antelación media ${d>=0?'sube':'baja'} un ${percent(Math.abs(d))}: reservas ${d>=0?'con más':'de más última hora'} respecto al año anterior (${numeric(leadBefore)} → ${numeric(leadNow)} días).`,kind:'info',mag:Math.abs(d)});}
+  const shareOf=(agg,name)=>{const c=agg.categories.channel[name];return agg.gross&&c?c.gross/agg.gross:0};
+  const channels=new Set([...Object.keys(now.categories.channel),...Object.keys(before.categories.channel)]);
+  let biggestShift=null;
+  for(const ch of channels){const d=(shareOf(now,ch)-shareOf(before,ch))*100;if(!biggestShift||Math.abs(d)>Math.abs(biggestShift.d))biggestShift={ch,d}}
+  if(biggestShift&&Math.abs(biggestShift.d)>=5)bullets.push({text:`${biggestShift.ch} ${biggestShift.d>=0?'gana':'pierde'} ${numeric(Math.abs(biggestShift.d))} puntos de peso sobre el total frente al año anterior.`,kind:'info',mag:Math.abs(biggestShift.d)/10});
  }
- if(payload.meta.reconciliation_warnings>0)bullets.push({text:`${payload.meta.reconciliation_warnings} reserva(s) con el total PVP sin conciliar del todo con el CSV de servicios.`,kind:'warn'});
- if(payload.meta.channel_coverage<payload.meta.reservations)bullets.push({text:`${payload.meta.reservations-payload.meta.channel_coverage} reserva(s) sin canal identificado.`,kind:'warn'});
- const m=metrics(month,building);
- if(m.occupancy!==null&&m.occupancy>1)bullets.push({text:'La ocupación estimada supera el 100 % — revisa el inventario de apartamentos y los bloqueos.',kind:'warn'});
- const priority={warn:0,bad:1,good:2,info:3};
- return bullets.sort((a,b)=>priority[a.kind]-priority[b.kind]).slice(0,3);
+ bullets.sort((a,b)=>b.mag-a.mag);
+ if(bullets.length<2){
+  const share=(key)=>{const totals={};for(const r of rows)totals[r[key]]=(totals[r[key]]||0)+r.gross;const total=rows.reduce((s,r)=>s+r.gross,0)||1;const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);return sorted.length?{name:sorted[0][0],pct:sorted[0][1]/total}:null};
+  if(!building){const top=share('building');if(top)bullets.push({text:`${top.name} lidera la producción con ${percent(top.pct)} del total del periodo.`,kind:'info',mag:0})}
+  const topChannel=share('channel');if(topChannel)bullets.push({text:`${topChannel.name} es el canal con más producción: ${percent(topChannel.pct)} del PVP.`,kind:'info',mag:0});
+ }
+ return bullets.slice(0,4);
+}
+/* "Datos a supervisar": incidencias de calidad de datos, separadas de los hallazgos de negocio. */
+function computeWatchouts(){
+ if(!payload)return[];
+ const building=selectedBuilding(),month=$('month').value||defaultAnchorMonth();
+ const bullets=[];
+ if(payload.meta.reconciliation_warnings>0)bullets.push(`${payload.meta.reconciliation_warnings} reserva(s) con el total PVP sin conciliar del todo con el CSV de servicios.`);
+ if(payload.meta.channel_coverage<payload.meta.reservations)bullets.push(`${payload.meta.reservations-payload.meta.channel_coverage} reserva(s) sin canal identificado.`);
+ if(payload.meta.date_warnings>0)bullets.push(`${payload.meta.date_warnings} reserva(s) con diferencias entre fechas de estancia y noches registradas.`);
+ if(month){const m=metrics(month,building);if(m.occupancy!==null&&m.occupancy>1)bullets.push('La ocupación estimada supera el 100 % — revisa el inventario de apartamentos y los bloqueos.')}
+ return bullets;
 }
 function renderHighlights(){
  const holder=$('highlights');if(!holder)return;
  const bullets=computeHighlights();
  holder.innerHTML=bullets.length?`<h2>Lo más destacado</h2><ul class="highlights-list">${bullets.map(b=>`<li class="hl-${b.kind}">${safe(b.text)}</li>`).join('')}</ul><p class="note">Generado con reglas a partir de los datos cargados en este navegador; no es un resumen redactado por IA.</p>`:'';
+ const watchHolder=$('watchouts');if(!watchHolder)return;
+ const watchouts=computeWatchouts();
+ watchHolder.innerHTML=watchouts.length?`<h2>Datos a supervisar</h2><ul class="highlights-list">${watchouts.map(t=>`<li class="hl-warn">${safe(t)}</li>`).join('')}</ul><p class="note">Avisos de calidad de los datos cargados, no de rendimiento del negocio.</p>`:'';
 }
 function toplineMonthValue(key,building,month,day){
  const prev=monthEarlier(month,-12);
