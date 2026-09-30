@@ -4,9 +4,6 @@ const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const {flattenJsonLd,ratingFromJsonLd,ratingFromPage,categoriesFromPage,countFromText}=require('./extract-public');
 const CONFIG=path.join(__dirname,'public-pages.json');
 const PORT=Number(process.env.BONAVISTA_PORT||8765),ALLOWED_HOSTS=new Set(['www.booking.com','www.expedia.com','www.expedia.es','www.airbnb.com','www.google.com','maps.google.com']);
-// Competitors are tracked to benchmark Bonavista, not scraped from Booking/Expedia: those
-// restrict automated access in their terms. Only Google's public map listing is read for them.
-const COMPETITOR_ALLOWED_PLATFORMS=new Set(['Google']);
 function validated(raw){const url=new URL(raw);if(url.protocol!=='https:'||!ALLOWED_HOSTS.has(url.hostname))throw Error('Dominio no admitido: '+url.hostname);return url.toString();}
 function send(res,status,body){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(body));}
 async function collect(browserCtx,profile){const page=await browserCtx.newPage({locale:'es-ES',timezoneId:'Europe/Madrid'});try{await page.addInitScript(`const flattenJsonLd=${flattenJsonLd.toString()};const ratingFromJsonLd=${ratingFromJsonLd.toString()};const countFromText=${countFromText.toString()};window.__bonavistaRating=${ratingFromPage.toString()};window.__bonavistaCategories=${categoriesFromPage.toString()};`);
@@ -27,15 +24,11 @@ async function collect(browserCtx,profile){const page=await browserCtx.newPage({
   },{platform:profile.platform});if(!info.rating)throw Error('Nota no visible en esta ficha');const scale=profile.platform==='Airbnb'||profile.platform==='Google'?5:10;const score=info.rating.scale&&info.rating.scale!==scale?Math.round(info.rating.score/info.rating.scale*scale*100)/100:info.rating.score;if(score<0||score>scale)throw Error('Escala de nota inesperada');
   const result={platform:profile.platform,building:profile.building,score,categories:info.categories,capturedAt:new Date().toISOString(),source:profile.url};
   if(info.rating.count)result.reviewCount=info.rating.count;
-  if(profile.competitor)Object.assign(result,{competitor:profile.competitor,postalCode:profile.postalCode||'',businessType:profile.businessType||''});
   return result;
  }finally{await page.close()}}
 async function refresh(){let playwright;try{playwright=require('playwright')}catch{throw Error('Instala Playwright: npm install --prefix integrations')};const config=JSON.parse(fs.readFileSync(CONFIG,'utf8')),errors=[];
- const ownTasks=(config.profiles||[]).map(p=>({...p}));
- const competitorTasks=(config.competitors||[]).map(c=>({...c}));
- const skipped=competitorTasks.filter(c=>!COMPETITOR_ALLOWED_PLATFORMS.has(c.platform));
- for(const c of skipped)errors.push({platform:c.platform,building:c.competitor||c.building,error:'Plataforma no habilitada para competidores (solo Google): evita el riesgo de condiciones de uso de Booking/Expedia'});
- const tasks=[...ownTasks,...competitorTasks.filter(c=>COMPETITOR_ALLOWED_PLATFORMS.has(c.platform))];
+ // Reputation is read only for Bonavista's own listings, never for competitors.
+ const tasks=(config.profiles||[]).map(p=>({...p}));
  // Headless Chromium behaves differently enough from a real browser window that some sites
  // (Expedia, in testing) block it outright even on a single, isolated request; a normal
  // (non-headless) window is not evasion, just Playwright's other standard launch mode, and
@@ -50,7 +43,7 @@ async function refresh(){let playwright;try{playwright=require('playwright')}cat
   const perHost=async group=>{const out=[];for(const task of group){try{out.push({ok:true,value:await collect(browser,task)})}catch(e){out.push({ok:false,task,error:e.message})}if(group.length>1)await new Promise(r=>setTimeout(r,800))}return out};
   const grouped=await Promise.all([...byHost.values()].map(perHost));
   const outcomes=grouped.flat();
-  for(const o of outcomes){if(o.ok)reviews.push(o.value);else errors.push({platform:o.task.platform,building:o.task.competitor||o.task.building,error:o.error})}
+  for(const o of outcomes){if(o.ok)reviews.push(o.value);else errors.push({platform:o.task.platform,building:o.task.building,error:o.error})}
  // Prices need a configured property and a verified total for an exact stay;
  // ambiguous page cards are deliberately not interpreted as prices.
  }finally{await browser.close()}

@@ -4,28 +4,7 @@ Este lector se ejecutó como prototipo local de desarrollo. **Pablo no tendrá q
 
 Las fichas se leen **en paralelo entre plataformas distintas** (Booking, Expedia, Airbnb y Google a la vez, cada una en su propia pestaña), pero **una detrás de otra dentro de la misma plataforma** (con una pequeña pausa entre fichas): pedir varias fichas de Booking o Expedia a la vez hizo que Expedia respondiera con HTTP 429 (demasiadas peticiones) en la primera prueba real.
 
-## Competencia (benchmark)
-
-`public-pages.json` tiene un segundo array, `competitors`, separado de `profiles` (que son las fichas propias de Bonavista). Es una lista manual: hay que añadir cada competidor a mano, con su URL de Google Maps. No hay descubrimiento automático por zona.
-
-Por decisión explícita (2026-09-29): los competidores **solo se leen de Google**, nunca de Booking o Expedia — ambas restringen el acceso automatizado en sus condiciones y el riesgo es mayor cuantas más fichas ajenas se consultan. Si se añade un competidor con otra plataforma, el lector lo salta y lo reporta en `errors` sin visitarlo; es un control en el propio código (`COMPETITOR_ALLOWED_PLATFORMS`), no solo una nota en este documento.
-
-Esquema de cada entrada de `competitors`:
-
-```json
-{
-  "platform": "Google",
-  "competitor": "Nombre del alojamiento competidor",
-  "building": "Bonavista Virreina",
-  "postalCode": "08001",
-  "businessType": "hotel",
-  "url": "https://www.google.com/maps/place/..."
-}
-```
-
-- `building`: el edificio de Bonavista con el que se compara (para filtrar en el dashboard junto al resto de cifras de ese edificio).
-- `postalCode` / `businessType` ("hotel", "aparthotel", etc.): metadatos libres, se muestran como etiqueta junto a la nota y sirven para filtrar la lista de competidores en el dashboard.
-- El resultado lleva estos mismos campos (`competitor`, `postalCode`, `businessType`) además de `platform`/`building`/`score`/`categories`/`capturedAt`/`source`, para que el dashboard distinga la reputación propia de la de cada competidor.
+**Decisión explícita (2026-09-30): la reputación no se compara con la competencia.** `public-pages.json` solo lista fichas propias de Bonavista (array `profiles`); no hay lectura de reputación de terceros. Los precios de mercado sí incluyen competidores, pero por otra vía: carga manual de tarifas (ver «Contrato de datos» más abajo), no scraping de reputación.
 
 Solo para un desarrollador que quiera probar el prototipo local:
 

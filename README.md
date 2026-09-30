@@ -56,7 +56,7 @@ Cada carga queda como captura fechada. La vista «Ver acumulado» toma **la capt
 
 Mientras no se despliegue ese servicio, el botón figura desactivado y comunica que está pendiente de conexión. La variable `window.BONAVISTA_MARKET_ENDPOINT` se configura en el despliegue y debe apuntar a un endpoint protegido del mismo origen. Una consulta sin cambios no duplica registros. Se puede importar un JSON de mercado desde un proveedor mientras tanto. El contrato está en [`integrations/README.md`](integrations/README.md). La lectura automática en webs reales no está aún verificada ni activada; Booking, Expedia y Airbnb restringen la extracción automatizada en sus condiciones públicas.
 
-El lector local de `integrations/` lee las fichas en paralelo (varias a la vez, no una detrás de otra) y admite además una lista manual de competidores (`competitors` en `public-pages.json`), cada uno con edificio de referencia, código postal y tipo de negocio (hotel, aparthotel...). Por el riesgo de condiciones de uso, los competidores solo se leen de Google, nunca de Booking o Expedia. El bloque «Mercado y reputación» del dashboard muestra su nota junto a la propia, con filtro por tipo y código postal.
+El lector local de `integrations/` lee las fichas propias de Bonavista en paralelo entre plataformas (una pausa entre fichas dentro de la misma plataforma). La reputación no se compara con la competencia — solo los precios de mercado incluyen comparables de otros alojamientos, por carga manual.
 
 La impresión A4 tiene estilos para KPIs, gráficos y tabla de mercado. Queda pendiente validar visualmente las páginas resultantes en un navegador con los datos del proyecto antes de considerarla definitiva.
 
