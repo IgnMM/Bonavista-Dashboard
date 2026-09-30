@@ -307,7 +307,7 @@ function renderTopline(){
  const hasCurrent=latest().some(x=>x.month===month&&(!building||matchBuilding(x.building,building)));
  const lastLoadedMonth=[...new Set(latest().map(x=>x.month))].sort().at(-1);
  if(!hasCurrent){
-  holder.innerHTML=`<h2>${safe(month)} · ${safe(buildingLabel(building))}</h2><p class="note">Sin carga del mes en curso todavía${lastLoadedMonth?'; última carga disponible: '+safe(lastLoadedMonth):''}. Sube la exportación de ${safe(month)} en «Datos y ajustes» para ver aquí cómo va el mes actual.</p>`;
+  holder.innerHTML=`<h2>${safe(month)} · ${safe(buildingLabel(building))}</h2><p class="note">Sin carga del mes en curso todavía${lastLoadedMonth?'; última carga disponible: '+safe(lastLoadedMonth):''}. Sube la exportación de ${safe(month)} en «Subir nuevos datos» para ver aquí cómo va el mes actual.</p>`;
   return;
  }
  const asOf=window.PORTFOLIO_ASOF?.[month]||payload.meta.as_of;

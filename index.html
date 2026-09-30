@@ -77,7 +77,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 </style></head><body><div class="shell"><header><div class="brand"><img src="assets/logo.svg" alt="Bonavista Apartments" width="165" height="61"></div><div class="header-actions"><button class="ghost" onclick="window.print()">Imprimir / PDF</button></div></header>
 <div id="simulatedBanner"></div>
 <div class="intro"><div><h1>Dashboard de gestión</h1><p class="sub">Una visión clara del negocio, desde cada edificio hasta cada reserva.</p></div><span class="pill">PILOTO · DATOS BOOKIPRO</span></div><div class="print-meta" id="printMeta"></div>
-<details class="panel section-toggle settings-panel" id="settings"><summary>Datos y ajustes</summary>
+<details class="panel section-toggle settings-panel" id="settings"><summary>Subir nuevos datos</summary>
 <div class="panel upload"><label>Reservas BOOKIPRO (.xlsx)<input type="file" id="bookings" accept=".xlsx"></label><label>Desglose de servicios (.csv)<input type="file" id="services" accept=".csv"></label><button id="load">Actualizar dashboard</button></div><div id="status" class="status"></div>
 <p class="note" id="dashboardStatusLine"></p>
 <details class="panel archivo-panel"><summary><b>Archivo</b></summary>
@@ -139,7 +139,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 </div><p class="footer">BONAVISTA · Los archivos BOOKIPRO se procesan en este navegador; el servicio de mercado se consultará al pulsar el botón cuando esté activo.</p>
 <div id="detailOverlay" class="detail-overlay hidden"><div class="detail-modal"><button id="detailClose" class="ghost" type="button">Cerrar ✕</button><div class="panel detail" id="detail"></div></div></div>
 </div>
-<script src="vendor/jszip.min.js"></script><script src="parser.js?v=202609302027"></script><script src="storage.js?v=202609302027"></script><script src="folder.js?v=202609302027"></script><script src="portfolio.js?v=202609302027"></script><script src="dashboard.js?v=202609302027"></script><script src="enhancements.js?v=202609302027"></script><script src="details.js?v=202609302027"></script><script src="baseline.js?v=202609302027"></script>
+<script src="vendor/jszip.min.js"></script><script src="parser.js?v=202609302028"></script><script src="storage.js?v=202609302028"></script><script src="folder.js?v=202609302028"></script><script src="portfolio.js?v=202609302028"></script><script src="dashboard.js?v=202609302028"></script><script src="enhancements.js?v=202609302028"></script><script src="details.js?v=202609302028"></script><script src="baseline.js?v=202609302028"></script>
 <script>
 // Piloto (2026-09-30): lector local que Ignacio ejecuta en su portátil durante la demo con Pablo.
 // Solo funciona si ese servicio está corriendo en 127.0.0.1:8765; si no, el botón falla con un
@@ -147,4 +147,4 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 // esto se mantiene activo o se retira tras la demo.
 window.BONAVISTA_MARKET_ENDPOINT='http://127.0.0.1:8765/api/market-refresh';
 </script>
-<script src="market.js?v=202609302027"></script><script src="reviews-seed.js?v=202609302027"></script><script src="comparative.js?v=202609302027"></script></body></html>
+<script src="market.js?v=202609302028"></script><script src="reviews-seed.js?v=202609302028"></script><script src="comparative.js?v=202609302028"></script></body></html>
