@@ -1,6 +1,8 @@
 
 let payload=null;const $=id=>document.getElementById(id);const euro=n=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);const fmt=n=>new Intl.NumberFormat('es-ES',{maximumFractionDigits:1}).format(n);const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 window.SELECTED_BUILDINGS=new Set();
+/* Uso de Ignacio, no de Pablo: abrir con ?avanzado=1 en la URL para ver cargas anteriores e importar histórico. */
+if(new URLSearchParams(location.search).has('avanzado'))document.getElementById('avanzadoWrap')?.classList.remove('hidden');
 /* Confirmado por Pablo: directo es todo lo que no venga de Booking, Expedia, Airbnb u Oddo (agente). */
 const NON_DIRECT_CHANNEL_MARKERS=['booking','expedia','airbnb','oddo'];
 function isDirectChannel(name){return !NON_DIRECT_CHANNEL_MARKERS.some(p=>String(name||'').toLowerCase().includes(p))}

@@ -73,27 +73,23 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 </style></head><body><div class="shell"><header><div class="brand"><img src="assets/logo.svg" alt="Bonavista Apartments" width="165" height="61"></div><div class="header-actions"><button class="ghost" onclick="window.print()">Imprimir / PDF</button></div></header>
 <div id="simulatedBanner"></div>
 <div class="intro"><div><h1>Dashboard de gestión</h1><p class="sub">Una visión clara del negocio, desde cada edificio hasta cada reserva.</p></div><span class="pill">PILOTO · DATOS BOOKIPRO</span></div><div class="print-meta" id="printMeta"></div>
-<details class="panel section-toggle settings-panel" id="settings"><summary>Datos y ajustes <small>Cargar archivos, archivo y calidad de datos. No forma parte del recorrido de negocio.</small></summary>
-<div class="group-title uso-habitual"><b>Uso habitual</b> <small>Lo único que hace falta cada vez: subir los dos archivos de BOOKIPRO del mes.</small></div>
+<details class="panel section-toggle settings-panel" id="settings"><summary>Datos y ajustes</summary>
 <div class="panel upload"><label>Reservas BOOKIPRO (.xlsx)<input type="file" id="bookings" accept=".xlsx"></label><label>Desglose de servicios (.csv)<input type="file" id="services" accept=".csv"></label><button id="load">Actualizar dashboard</button></div><div id="status" class="status"></div>
 <p class="note" id="dashboardStatusLine"></p>
-<details class="panel archivo-panel"><summary><b>Archivo</b> <small>Copia de seguridad, restaurar, y opciones avanzadas. No es parte del día a día.</small></summary>
-<div class="history-group"><b>Guardar copia de seguridad</b>
+<details class="panel archivo-panel"><summary><b>Archivo</b></summary>
 <div class="history-row"><button class="ghost" id="backup">Guardar copia de seguridad</button></div><p class="note" id="lastBackup"></p>
-<p class="note">Genera un archivo con todo el dashboard: histórico completo, configuración y las capturas necesarias para el pickup. Guarda una de vez en cuando (por ejemplo al cerrar un mes) en la carpeta que acuerdes con Pablo.</p></div>
-<div class="history-group"><b>Restaurar copia de seguridad</b>
-<div class="history-row"><button class="ghost" id="chooseRestoreFile" type="button">Elegir archivo de copia…</button><span class="note" id="restoreFileName">Ningún archivo elegido</span><button class="ghost" id="doRestore" type="button" disabled>Restaurar</button></div>
+<div class="history-row"><button class="ghost" id="chooseRestoreFile" type="button">Restaurar copia de seguridad…</button><span class="note" id="restoreFileName">Ningún archivo elegido</span><button class="ghost" id="doRestore" type="button" disabled>Restaurar</button></div>
 <input type="file" id="restoreBackup" accept=".bonavista,.json" class="visually-hidden" tabindex="-1" aria-hidden="true">
 <p class="note status" id="restoreStatus"></p>
-<p class="note">Recupera el dashboard completo tal como estaba en esa copia, en este navegador. Antes de restaurar se guarda automáticamente una copia del estado actual, por si hace falta deshacerlo.</p></div>
+<div id="avanzadoWrap" class="hidden">
 <details class="avanzado"><summary>Opciones avanzadas</summary>
 <div class="history-group"><b>Ver una carga anterior</b><div class="history-row"><select id="snapshots" aria-label="Cargas guardadas"></select><button class="ghost" id="openSnapshot">Abrir</button></div><p class="note">No sube ningún archivo: elige una fecha ya guardada en este navegador para volver a ver ese momento.</p></div>
 <div class="history-group"><b>Histórico (comparación con años anteriores)</b>
 <div class="history-row"><button class="ghost" id="chooseHistorico" type="button">Elegir archivo de histórico…</button><span class="note" id="historicoFileName">Ningún archivo elegido</span><button class="ghost" id="doImportHistorico" type="button" disabled>Importar</button></div>
 <input type="file" id="historicoFile" accept=".json" class="visually-hidden" tabindex="-1" aria-hidden="true">
-<p class="note status" id="historicoStatus"></p>
-<p class="note">Solo hace falta una vez, al preparar el dashboard: carga el archivo agregado de años anteriores (2024, 2025, 2026…), reconstruido a partir de las exportaciones reales de Pablo, sin ningún dato de huésped. Queda guardado en este navegador y se incluye automáticamente en cada copia de seguridad.</p></div>
+<p class="note status" id="historicoStatus"></p></div>
 </details>
+</div>
 </details>
 <div id="quality" class="alert"></div><p class="note">El periodo actual se agrupa por fecha de llegada; las estancias que cruzan meses todavía no se reparten entre noches. Las tarifas externas requieren definir comparables y fechas; solo se incorporarán importes verificables.</p>
 </details>
