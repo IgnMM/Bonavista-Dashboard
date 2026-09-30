@@ -6,15 +6,18 @@ const pct=n=>new Intl.NumberFormat('es-ES',{style:'percent',maximumFractionDigit
 const num=n=>new Intl.NumberFormat('es-ES',{maximumFractionDigits:1}).format(n);
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const latest=()=>window.PORTFOLIO_BOOKINGS?.length?window.PORTFOLIO_BOOKINGS:(payload?.bookings||[]);
+// Inventario confirmado por Pablo (2026-09-30): apartamentos por edificio, no el recuento
+// de códigos de apartamento vistos en las reservas cargadas (que puede infravalorarlo).
+const KNOWN_UNITS={'Bonavista Passeig de Gracia':10,'Bonavista Virreina':16,'Bonavista Eixample':8,'Bonavista Pedrera':4,'Bonavista Tamarit':7};
 function initModel(){
   if(!payload)return;
   model.units||={};model.blocks||={};
   for(const b of [...new Set(latest().map(x=>x.building))]){
-    if(model.units[b]===undefined)model.units[b]=new Set(latest().filter(x=>x.building===b).map(x=>x.apartment).filter(x=>x&&x!=='Sin apartamento')).size;
+    if(model.units[b]===undefined)model.units[b]=KNOWN_UNITS[b]??new Set(latest().filter(x=>x.building===b).map(x=>x.apartment).filter(x=>x&&x!=='Sin apartamento')).size;
     if(model.blocks[b]===undefined)model.blocks[b]=0;
   }
   model.vat ??= 10;
-  model.cleaning ??= false;
+  model.cleaning ??= true;
   model.cancelled ??= null;
   model.priorMonth ??= null;
   model.priorYTD ??= null;

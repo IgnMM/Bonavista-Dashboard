@@ -42,6 +42,8 @@ Booking, Expedia y Airbnb restringen el acceso automatizado en sus condiciones p
 
 La **consulta de precios** permanece sin automatizar: hay que fijar lista de comparables, ciudad/zona, fechas, ocupación, duración, condiciones y precio total con impuestos; un precio genérico mostrado en una página sin esos criterios no es comparable. El lector devuelve `rates: []` hasta definir y validar esas reglas. Las fuentes que deniegue o no logre leer se muestran como no disponibles.
 
+**Criterios de comparabilidad confirmados con Pablo (2026-09-30):** mismo barrio, categoría de apartamento similar, estancia de 2 noches, 2 adultos, tarifa flexible/cancelable, precio final con impuestos incluidos. Pablo no tiene un benchmark de revenue management propio que imponer aquí ("no entraría en el mundo revenue, a nivel del desarrollo del dashboard") — estos criterios, propuestos por Ignacio, son los que rigen. Cualquier tarifa capturada que no cumpla estas condiciones no debe guardarse como comparable.
+
 ## Contrato de datos
 
 Esquema de cada valoración: `{ "platform": "Booking|Expedia|Airbnb|Google", "building": "nombre tal como figura en el dashboard", "score": 8.4, "capturedAt": "2026-09-26T10:00:00Z", "source": "https://...", "categories": {"cleaning":8.2,"staff":9.0,"location":8.5} }`. Booking y Expedia usan escala de 0 a 10; Airbnb y Google, de 0 a 5. El conector debe obtener el score directamente de la ficha pública, identificar la ficha correspondiente y aportar su URL verificable.
