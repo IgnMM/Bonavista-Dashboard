@@ -61,7 +61,7 @@ async function initFolderUi(){
       await saveVersionToFolderIfConnected();
       renderFolderStatus('✓ Carpeta conectada. A partir de ahora, cada carga nueva se guarda aquí sola.');
       $('connectFolder').classList.add('hidden');
-      $('loadFromFolder').classList.remove('hidden');
+      $('recoverNote').classList.remove('hidden');
     }catch(e){if(e.name!=='AbortError')renderFolderStatus('No se pudo conectar la carpeta: '+e.message,true)}
   };
   $('reconnectFolder').onclick=async()=>{
@@ -71,14 +71,14 @@ async function initFolderUi(){
     if(!ok){renderFolderStatus('No se concedió permiso sobre la carpeta.',true);return}
     renderFolderStatus('✓ Carpeta reconectada. Guardando aquí automáticamente.');
     $('reconnectFolder').classList.add('hidden');$('connectFolder').classList.add('hidden');
-    $('loadFromFolder').classList.remove('hidden');
+    $('recoverNote').classList.remove('hidden');
   };
   $('loadFromFolder').onclick=()=>doLoadFromFolder();
   const status=await reconnectFolder();
   if(status.connected){
     $('connectFolder').classList.add('hidden');
-    $('loadFromFolder').classList.remove('hidden');
-    renderFolderStatus('✓ Carpeta conectada. Guardando aquí automáticamente. Pulsa «Cargar desde la carpeta» si quieres traer lo último guardado ahí (por ejemplo, en otro ordenador).');
+    $('recoverNote').classList.remove('hidden');
+    renderFolderStatus('✓ Carpeta conectada. Guardando aquí automáticamente.');
   }else if(status.needsPermission){
     $('connectFolder').classList.add('hidden');
     $('reconnectFolder').classList.remove('hidden');
