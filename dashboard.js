@@ -40,6 +40,17 @@ $('doRestore').onclick=async()=>{
   $('restoreStatus').textContent='Leyendo el archivo…';
   try{const result=await restoreSnapshots(file);const historicoNote=(result.historicoAdded||result.historicoUpdated)?` Histórico: ${result.historicoAdded} filas nuevas, ${result.historicoUpdated} actualizadas.`:'';const msg=`Copia del ${whenText} incorporada: ${result.added} cargas y ${result.marketAdded} observaciones de mercado nuevas.${historicoNote} Los datos previos se conservan.`;$('status').textContent=msg;$('restoreStatus').textContent='✓ '+msg;$('restoreBackup').value='';$('restoreFileName').textContent='Ningún archivo elegido';await saveVersionToFolderIfConnected();if(payload){setupFilters(payload);render()}else{location.reload()}}catch(e){const msg='No se pudo recuperar la copia: '+e.message;$('status').textContent=msg;$('restoreStatus').textContent=msg;$('restoreStatus').classList.add('error');$('doRestore').disabled=false}};
 function renderFolderStatus(text,isError){const el=$('folderStatus');if(!el)return;el.textContent=text||'';el.classList.toggle('error',!!isError)}
+/* Deliberadamente NO carga sola al abrir la página: hacerlo automático pisaba restauraciones
+   manuales recién hechas si la carpeta tenía una versión distinta (p. ej. una copia vacía guardada
+   sin querer). Guardar sigue siendo automático; traer datos de la carpeta requiere este botón. */
+async function doLoadFromFolder(){
+  renderFolderStatus('Cargando lo último guardado en la carpeta…');
+  try{
+    const loaded=await loadLatestFromFolderIfConnected();
+    renderFolderStatus(loaded?'✓ Cargado lo último guardado en la carpeta: '+loaded.added+' captura(s) y '+loaded.marketAdded+' observación(es) de mercado nuevas.':'La carpeta todavía no tiene ninguna versión guardada.');
+    if(payload){setupFilters(payload);render()}else{location.reload()}
+  }catch(e){renderFolderStatus('No se pudo cargar desde la carpeta: '+e.message,true)}
+}
 async function initFolderUi(){
   if(!$('folderBlock'))return;
   if(!supportsFolderAccess())return; // Firefox/Safari: no mostrar esta opción.
@@ -47,12 +58,10 @@ async function initFolderUi(){
   $('connectFolder').onclick=async()=>{
     try{
       await connectFolder();
-      renderFolderStatus('Conectando…');
-      const loaded=await loadLatestFromFolderIfConnected();
-      if(!loaded)await saveVersionToFolderIfConnected();
-      renderFolderStatus('✓ Carpeta conectada. Guardando aquí automáticamente.');
+      await saveVersionToFolderIfConnected();
+      renderFolderStatus('✓ Carpeta conectada. A partir de ahora, cada carga nueva se guarda aquí sola.');
       $('connectFolder').classList.add('hidden');
-      if(payload){setupFilters(payload);render()}
+      $('loadFromFolder').classList.remove('hidden');
     }catch(e){if(e.name!=='AbortError')renderFolderStatus('No se pudo conectar la carpeta: '+e.message,true)}
   };
   $('reconnectFolder').onclick=async()=>{
@@ -60,19 +69,16 @@ async function initFolderUi(){
     if(!handle){renderFolderStatus('No hay ninguna carpeta guardada todavía.',true);return}
     const ok=await requestFolderPermission(handle);
     if(!ok){renderFolderStatus('No se concedió permiso sobre la carpeta.',true);return}
-    renderFolderStatus('Conectando…');
-    const loaded=await loadLatestFromFolderIfConnected();
-    renderFolderStatus(loaded?'✓ Carpeta reconectada y actualizada con lo último guardado ahí.':'✓ Carpeta reconectada.');
+    renderFolderStatus('✓ Carpeta reconectada. Guardando aquí automáticamente.');
     $('reconnectFolder').classList.add('hidden');$('connectFolder').classList.add('hidden');
-    if(payload){setupFilters(payload);render()}
+    $('loadFromFolder').classList.remove('hidden');
   };
+  $('loadFromFolder').onclick=()=>doLoadFromFolder();
   const status=await reconnectFolder();
   if(status.connected){
     $('connectFolder').classList.add('hidden');
-    renderFolderStatus('Cargando lo último guardado en la carpeta…');
-    const loaded=await loadLatestFromFolderIfConnected();
-    renderFolderStatus(loaded?'✓ Carpeta conectada. Guardando aquí automáticamente.':'✓ Carpeta conectada (todavía vacía). Guardando aquí automáticamente.');
-    if(payload){setupFilters(payload);render()}
+    $('loadFromFolder').classList.remove('hidden');
+    renderFolderStatus('✓ Carpeta conectada. Guardando aquí automáticamente. Pulsa «Cargar desde la carpeta» si quieres traer lo último guardado ahí (por ejemplo, en otro ordenador).');
   }else if(status.needsPermission){
     $('connectFolder').classList.add('hidden');
     $('reconnectFolder').classList.remove('hidden');
