@@ -24,7 +24,7 @@ function renderSnapshotBanner(){
  $('exitSnapshot').onclick=()=>exitSnapshotView();
 }
 
-$('load').onclick=async()=>{const a=$('bookings').files[0],b=$('services').files[0];if(!a||!b){$('status').textContent='Selecciona los dos archivos de la misma exportación.';return} window.VIEWING_SNAPSHOT=null;$('status').textContent='Validando los archivos…';$('dashboard').classList.add('hidden');try{const data=await analyseFiles(a,b);payload=data;let saved=true;let isNew=true;try{isNew=await saveSnapshot(data,a.name,b.name)}catch(err){saved=false}setupFilters(data);$('dashboard').classList.remove('hidden');$('status').textContent=(saved?(isNew?'Nueva captura guardada: ':'Captura idéntica a otra ya guardada; sin duplicar: '):'Importación mostrada sin guardar; el navegador bloqueó el almacenamiento local: ')+data.meta.reservations+' reservas y '+data.meta.service_lines+' líneas de servicios.';render()}catch(e){$('status').textContent='Error: '+e.message}};
+$('load').onclick=async()=>{const a=$('bookings').files[0],b=$('services').files[0];if(!a||!b){$('status').textContent='Selecciona los dos archivos de la misma exportación.';return} window.VIEWING_SNAPSHOT=null;$('status').textContent='Validando los archivos…';$('dashboard').classList.add('hidden');try{const data=await analyseFiles(a,b);payload=data;let saved=true;let isNew=true;try{isNew=await saveSnapshot(data,a.name,b.name)}catch(err){saved=false}setupFilters(data);$('dashboard').classList.remove('hidden');await saveVersionToFolderIfConnected();$('status').textContent=(saved?(isNew?'Nueva captura guardada: ':'Captura idéntica a otra ya guardada; sin duplicar: '):'Importación mostrada sin guardar; el navegador bloqueó el almacenamiento local: ')+data.meta.reservations+' reservas y '+data.meta.service_lines+' líneas de servicios.';render()}catch(e){$('status').textContent='Error: '+e.message}};
 $('building').onchange=()=>render();$('month').onchange=()=>render();
 $('openSnapshot').onclick=async()=>{const id=$('snapshots').value;if(!id)return;const record=(await listSnapshots()).find(x=>x.id===id);if(!record)return;payload=record.data;window.PORTFOLIO_BOOKINGS=record.data.bookings;window.PORTFOLIO_ASOF=Object.fromEntries([...new Set(record.data.bookings.map(x=>x.month))].map(month=>[month,record.data.meta.as_of||id.slice(0,10)]));window.VIEWING_SNAPSHOT=id;setupFilters(payload);$('dashboard').classList.remove('hidden');$('status').textContent='Carga del '+new Date(id).toLocaleString('es-ES')+' · '+record.bookName;render()};
 $('backup').onclick=()=>exportSnapshots().catch(e=>$('status').textContent=e.message);
@@ -38,10 +38,50 @@ $('doRestore').onclick=async()=>{
   $('doRestore').disabled=true;$('restoreStatus').classList.remove('error');$('restoreStatus').textContent='Guardando copia de seguridad del estado actual…';
   try{await exportSnapshots()}catch(e){if(!/Todavía no hay datos/.test(e.message))throw e}
   $('restoreStatus').textContent='Leyendo el archivo…';
-  try{const result=await restoreSnapshots(file);const historicoNote=(result.historicoAdded||result.historicoUpdated)?` Histórico: ${result.historicoAdded} filas nuevas, ${result.historicoUpdated} actualizadas.`:'';const msg=`Copia del ${whenText} incorporada: ${result.added} cargas y ${result.marketAdded} observaciones de mercado nuevas.${historicoNote} Los datos previos se conservan.`;$('status').textContent=msg;$('restoreStatus').textContent='✓ '+msg;$('restoreBackup').value='';$('restoreFileName').textContent='Ningún archivo elegido';if(payload){setupFilters(payload);render()}else{location.reload()}}catch(e){const msg='No se pudo recuperar la copia: '+e.message;$('status').textContent=msg;$('restoreStatus').textContent=msg;$('restoreStatus').classList.add('error');$('doRestore').disabled=false}};
+  try{const result=await restoreSnapshots(file);const historicoNote=(result.historicoAdded||result.historicoUpdated)?` Histórico: ${result.historicoAdded} filas nuevas, ${result.historicoUpdated} actualizadas.`:'';const msg=`Copia del ${whenText} incorporada: ${result.added} cargas y ${result.marketAdded} observaciones de mercado nuevas.${historicoNote} Los datos previos se conservan.`;$('status').textContent=msg;$('restoreStatus').textContent='✓ '+msg;$('restoreBackup').value='';$('restoreFileName').textContent='Ningún archivo elegido';await saveVersionToFolderIfConnected();if(payload){setupFilters(payload);render()}else{location.reload()}}catch(e){const msg='No se pudo recuperar la copia: '+e.message;$('status').textContent=msg;$('restoreStatus').textContent=msg;$('restoreStatus').classList.add('error');$('doRestore').disabled=false}};
+function renderFolderStatus(text,isError){const el=$('folderStatus');if(!el)return;el.textContent=text||'';el.classList.toggle('error',!!isError)}
+async function initFolderUi(){
+  if(!$('folderBlock'))return;
+  if(!supportsFolderAccess())return; // Firefox/Safari: no mostrar esta opción.
+  $('folderBlock').classList.remove('hidden');
+  $('connectFolder').onclick=async()=>{
+    try{
+      await connectFolder();
+      renderFolderStatus('Conectando…');
+      const loaded=await loadLatestFromFolderIfConnected();
+      if(!loaded)await saveVersionToFolderIfConnected();
+      renderFolderStatus('✓ Carpeta conectada. Guardando aquí automáticamente.');
+      $('connectFolder').classList.add('hidden');
+      if(payload){setupFilters(payload);render()}
+    }catch(e){if(e.name!=='AbortError')renderFolderStatus('No se pudo conectar la carpeta: '+e.message,true)}
+  };
+  $('reconnectFolder').onclick=async()=>{
+    const {handle}=await reconnectFolder();
+    if(!handle){renderFolderStatus('No hay ninguna carpeta guardada todavía.',true);return}
+    const ok=await requestFolderPermission(handle);
+    if(!ok){renderFolderStatus('No se concedió permiso sobre la carpeta.',true);return}
+    renderFolderStatus('Conectando…');
+    const loaded=await loadLatestFromFolderIfConnected();
+    renderFolderStatus(loaded?'✓ Carpeta reconectada y actualizada con lo último guardado ahí.':'✓ Carpeta reconectada.');
+    $('reconnectFolder').classList.add('hidden');$('connectFolder').classList.add('hidden');
+    if(payload){setupFilters(payload);render()}
+  };
+  const status=await reconnectFolder();
+  if(status.connected){
+    $('connectFolder').classList.add('hidden');
+    renderFolderStatus('Cargando lo último guardado en la carpeta…');
+    const loaded=await loadLatestFromFolderIfConnected();
+    renderFolderStatus(loaded?'✓ Carpeta conectada. Guardando aquí automáticamente.':'✓ Carpeta conectada (todavía vacía). Guardando aquí automáticamente.');
+    if(payload){setupFilters(payload);render()}
+  }else if(status.needsPermission){
+    $('connectFolder').classList.add('hidden');
+    $('reconnectFolder').classList.remove('hidden');
+    renderFolderStatus('Ya elegiste una carpeta antes: pulsa «Reconectar» para seguir usándola (el navegador pide confirmarlo en cada sesión).');
+  }
+}
 refreshSnapshots().catch(e=>$('status').textContent='No se puede acceder al almacenamiento local: '+e.message);
 renderLastBackup();
-(async()=>{try{const items=await listSnapshots();if(!items.length)return;await refreshPortfolio();if(!window.PORTFOLIO_BOOKINGS.length)return;payload=items[0].data;setupFilters(payload);$('dashboard').classList.remove('hidden');$('status').textContent='Cargado automáticamente con lo guardado en este navegador ('+items.length+' capturas). Sube un archivo solo para añadir un mes nuevo o actualizar el mes en curso.';render()}catch(e){}})();
+(async()=>{try{await initFolderUi()}catch(e){}try{const items=await listSnapshots();if(!items.length)return;await refreshPortfolio();if(!window.PORTFOLIO_BOOKINGS.length)return;payload=items[0].data;setupFilters(payload);$('dashboard').classList.remove('hidden');$('status').textContent='Cargado automáticamente con lo guardado en este navegador ('+items.length+' capturas). Sube un archivo solo para añadir un mes nuevo o actualizar el mes en curso.';render()}catch(e){}})();
 function subset(){const p=window.periodMonths?window.periodMonths():null,months=p?new Set(p.months):null,building=selectedBuilding();return (window.PORTFOLIO_BOOKINGS?.length?window.PORTFOLIO_BOOKINGS:payload.bookings).filter(x=>(!building||matchBuilding(x.building,building))&&(!months||months.has(x.month)))}
 function distribution(rows,key,element,measure='gross',limit=10,pctOnly=false){const sums={};for(const r of rows)sums[r[key]]=(sums[r[key]]||0)+(measure==='count'?1:r[measure]);const entries=Object.entries(sums).sort((a,b)=>b[1]-a[1]).slice(0,limit),max=entries[0]?.[1]||1,total=rows.reduce((s,r)=>s+(measure==='count'?1:r[measure]),0)||1;const showPct=pctOnly||(window.SALES_VIEW_MODE||'eur')==='pct';$(element).innerHTML=entries.length?entries.map(([name,n])=>`<div class="barrow"><span title="${escape(name)}">${escape(name.length>22?name.slice(0,20)+'…':name)}</span><div class="track"><div class="fill" style="width:${Math.max(1,100*n/max)}%"></div></div><span class="right">${showPct?fmt(n/total*100)+' %':euro(n)}</span></div>`).join(''):'<p class="note">Sin datos para el filtro seleccionado.</p>'}
 function renderSalesExtras(rows){

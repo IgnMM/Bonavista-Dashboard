@@ -51,6 +51,7 @@ function wireHistoricoImport(){
       const months=[...new Set(merged.rows.map(r=>r.month))].sort();
       statusEl.textContent='✓ Histórico combinado: '+added+' filas nuevas, '+updated+' actualizadas, '+kept+' ya existentes conservadas sin tocar. Total '+merged.rows.length+' filas ('+(months[0]||'')+' a '+(months.at(-1)||'')+'). Ya se compara en Evolución y se incluirá en la próxima copia de seguridad.';
       fileInput.value='';nameEl.textContent='Ningún archivo elegido';
+      if(typeof saveVersionToFolderIfConnected==='function')await saveVersionToFolderIfConnected();
       if(payload&&typeof render==='function')render();
     }catch(e){statusEl.textContent='No se pudo importar: '+e.message;statusEl.classList.add('error')}
     finally{doBtn.disabled=false}
