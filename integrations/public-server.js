@@ -43,7 +43,7 @@ async function refresh(){let playwright;try{playwright=require('playwright')}cat
   const perHost=async group=>{const out=[];for(const task of group){try{out.push({ok:true,value:await collect(browser,task)})}catch(e){out.push({ok:false,task,error:e.message})}if(group.length>1)await new Promise(r=>setTimeout(r,800))}return out};
   const grouped=await Promise.all([...byHost.values()].map(perHost));
   const outcomes=grouped.flat();
-  for(const o of outcomes){if(o.ok)reviews.push(o.value);else errors.push({platform:o.task.platform,building:o.task.building,error:o.error})}
+  for(const o of outcomes){if(o.ok)reviews.push(o.value);else errors.push({platform:o.task.platform,building:o.task.building,error:o.error,url:o.task.url})}
  // Prices need a configured property and a verified total for an exact stay;
  // ambiguous page cards are deliberately not interpreted as prices.
  }finally{await browser.close()}

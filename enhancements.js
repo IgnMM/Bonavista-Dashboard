@@ -89,16 +89,30 @@ function renderReputationHistory(points,scale){
     return `<div class="quarter-col"><div class="quarter-head">${safe(quarterLabel(q))}</div>${items.length?items.map(p=>`<div class="quarter-row${p.delta<0?' down':p.delta>0?' up':''}" title="${p.delta!==null?(p.delta<0?'Baja respecto a la captura anterior':'Sube respecto a la captura anterior'):'Primera captura registrada'}"><span class="qdate">${new Date(p.date).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'})}</span><span class="qscore">${num(p.score)}/${scale}${p.delta!==null?` <i>${p.delta>=0?'+':''}${num(p.delta)}</i>`:''}</span>${p.reviewCount?`<span class="qcount">${num(p.reviewCount)} op.</span>`:''}</div>`).join(''):'<div class="quarter-empty">Sin capturas</div>'}</div>`;
   }).join('')}</div>`;
 }
+const REVIEW_PLATFORMS=[['Booking',10],['Expedia',10],['Airbnb',5],['Google',5]];
 function showReviews(){
   const history=JSON.parse(localStorage.getItem(REVIEW_KEY)||'{}');
   const sel=selectedBuilding(),single=sel&&sel.size===1?[...sel][0]:null;
-  if(!single){$('reviews').innerHTML='<p class="note">Elige un único edificio arriba (no «Todos» ni varios) para ver y editar su reputación; las notas no se agregan entre edificios.</p>';return}
-  const building=single;
-  $('reviews').innerHTML='<div class="reviews-grid">'+[['Booking',10],['Expedia',10],['Airbnb',5],['Google',5]].map(([platform,scale])=>{
+  if(single){showReviewsDetail(history,single);return}
+  showReviewsSummary(history,sel);
+}
+function showReviewsDetail(history,building){
+  $('reviews').innerHTML='<div class="reviews-grid">'+REVIEW_PLATFORMS.map(([platform,scale])=>{
     const key=building+'|'+platform,points=history[key]||[],last=points.at(-1);
     const noDataNote=(building==='Bonavista Tamarit'&&platform!=='Google')?'Bonavista Tamarit todavía no tiene ficha confirmada en '+platform+'.':'Sin captura todavía — usa «Actualizar mercado» más abajo.';
     return `<div class="review-input"><label>${platform} · ${last?num(last.score)+'/'+scale:'sin dato'}${last?.reviewCount?' · '+num(last.reviewCount)+' opiniones':''}</label><small>${last?'Última captura: '+new Date(last.date).toLocaleDateString('es-ES')+(last.source?` · <a href="${safe(last.source)}" target="_blank" rel="noopener noreferrer">fuente</a>`:''):noDataNote}</small>${renderReputationHistory(points,scale)}${last&&last.categories&&Object.keys(last.categories).length?`<small>Aspectos: ${Object.entries(last.categories).map(([k,v])=>`${safe(k)} ${num(v)}`).join(' · ')}</small>`:''}</div>`
   }).join('')+'</div><p class="note">Selección: '+safe(building)+'. Las notas son por edificio: elige uno arriba para verlas (no se agregan varios edificios en una sola cifra). Se cargan con «Actualizar mercado» (lectura automática) o importando el JSON del lector; no hay entrada manual.</p>';
+}
+function showReviewsSummary(history,sel){
+  const buildings=(sel&&sel.size?[...sel]:[...new Set(latest().map(x=>x.building))]).sort();
+  if(!buildings.length){$('reviews').innerHTML='<p class="note">Sube reservas para ver la reputación por edificio.</p>';return}
+  $('reviews').innerHTML='<div class="reviews-summary">'+buildings.map(building=>{
+    const cells=REVIEW_PLATFORMS.map(([platform,scale])=>{
+      const key=building+'|'+platform,last=(history[key]||[]).at(-1);
+      return `<div class="reviews-summary-cell"><span>${safe(platform)}</span><strong>${last?num(last.score)+'/'+scale:'—'}</strong></div>`;
+    }).join('');
+    return `<div class="reviews-summary-row"><b>${safe(building)}</b><div class="reviews-summary-cells">${cells}</div></div>`;
+  }).join('')+'</div><p class="note">Última nota captada de cada plataforma, por edificio. Elige un único edificio arriba para ver el histórico trimestral completo.</p>';
 }
 const previousRender=render;
 render=function(){
