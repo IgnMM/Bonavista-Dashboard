@@ -42,6 +42,7 @@ function wireHistoricoImport(){
     try{
       if(file.size>25e6)throw Error('Archivo demasiado grande');
       const data=JSON.parse(await file.text());
+      if(data.format&&data.format.startsWith('bonavista-dashboard-backup'))throw Error('Esto es una copia de seguridad, no un archivo de histórico: usa «Elegir archivo de copia…» + «Restaurar» más arriba, no este botón.');
       if(data.format!=='bonavista-baseline-v1'||!Array.isArray(data.rows))throw Error('No es un archivo de histórico válido');
       for(const row of data.rows){if(typeof row.month!=='string'||typeof row.building!=='string'||!Array.isArray(row.bookedByDay))throw Error('Fila de histórico dañada')}
       const {merged,added,updated,kept}=mergeHistorico(historical,data);
