@@ -28,6 +28,9 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 .pulse{border:1.5px solid #E4042C;box-shadow:0 8px 22px #5B001114}
 .period-control{margin:18px 0 0}.period-tabs{display:inline-flex;border:1px solid #E5DDDF;border-radius:10px;overflow:hidden}.period-tabs button{border:0;background:white;padding:9px 16px;font-size:12px;font-weight:700;color:#595557;cursor:pointer}.period-tabs button+button{border-left:1px solid #E5DDDF}.period-tabs button.active{background:#E4042C;color:#fff}.period-control .note{margin-top:8px}
 .settings-panel{background:#F3F1F0;border-style:dashed}.settings-panel summary{color:#595557}.settings-panel[open]{padding-bottom:22px}
+.archivo-panel{margin-top:18px;background:white}.archivo-panel summary{cursor:pointer;color:#595557;list-style:none}.archivo-panel summary::before{content:"＋ ";font-weight:700;color:#9D001C}.archivo-panel[open] summary::before{content:"− "}.archivo-panel summary small{display:block;font-weight:400;margin-top:3px}.archivo-panel .history-group:first-of-type{margin-top:16px}
+.avanzado{margin-top:18px;padding-top:15px;border-top:1px solid #EEE8E9}.avanzado summary{cursor:pointer;font-weight:700;font-size:12px;color:#716A6D;list-style:none}.avanzado summary::before{content:"＋ ";color:#9D001C}.avanzado[open] summary::before{content:"− "}.avanzado .history-group:first-of-type{margin-top:14px}
+#dashboardStatusLine:not(:empty){color:#595557;font-weight:700;margin:4px 0 0}
 .uso-habitual{margin-top:22px}.uso-habitual:first-of-type{margin-top:6px}.uso-habitual b{font-size:15px}
 #restoreStatus:not(:empty){font-weight:700;color:#2f7d4f;background:#F0F7F2;border-radius:8px;padding:8px 12px}#restoreStatus.error{color:#9D001C;background:#FAF1F1}
 #historicoStatus:not(:empty){font-weight:700;color:#2f7d4f;background:#F0F7F2;border-radius:8px;padding:8px 12px}#historicoStatus.error{color:#9D001C;background:#FAF1F1}
@@ -73,21 +76,25 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 <details class="panel section-toggle settings-panel" id="settings"><summary>Datos y ajustes <small>Cargar archivos, cargas guardadas, copia de seguridad, calidad de datos, hipótesis y preguntas para Pablo. No forma parte del recorrido de negocio.</small></summary>
 <div class="group-title uso-habitual"><b>Uso habitual</b> <small>Lo único que hace falta cada vez: subir los dos archivos de BOOKIPRO del mes.</small></div>
 <div class="panel upload"><label>Reservas BOOKIPRO (.xlsx)<input type="file" id="bookings" accept=".xlsx"></label><label>Desglose de servicios (.csv)<input type="file" id="services" accept=".csv"></label><button id="load">Actualizar dashboard</button></div><div id="status" class="status"></div>
-<div class="group-title uso-habitual"><b>Casos excepcionales</b> <small>No son parte del día a día: revisar un momento pasado, o mover estos datos a otro navegador u ordenador.</small></div>
-<div class="panel history">
-<div class="history-group"><b>Ver una carga anterior</b><div class="history-row"><select id="snapshots" aria-label="Cargas guardadas"></select><button class="ghost" id="openSnapshot">Abrir</button></div><p class="note">No sube ningún archivo: elige una fecha ya guardada en este navegador para volver a ver ese momento.</p></div>
-<div class="history-group"><b>Copia de seguridad</b>
-<div class="history-row"><button class="ghost" id="backup">Descargar copia</button></div><p class="note" id="lastBackup"></p>
+<p class="note" id="dashboardStatusLine"></p>
+<details class="panel archivo-panel"><summary><b>Archivo</b> <small>Copia de seguridad, restaurar, y opciones avanzadas. No es parte del día a día.</small></summary>
+<div class="history-group"><b>Guardar copia de seguridad</b>
+<div class="history-row"><button class="ghost" id="backup">Guardar copia de seguridad</button></div><p class="note" id="lastBackup"></p>
+<p class="note">Genera un archivo con todo el dashboard: histórico completo, configuración y las capturas necesarias para el pickup. Guarda una de vez en cuando (por ejemplo al cerrar un mes) en la carpeta que acuerdes con Pablo.</p></div>
+<div class="history-group"><b>Restaurar copia de seguridad</b>
 <div class="history-row"><button class="ghost" id="chooseRestoreFile" type="button">Elegir archivo de copia…</button><span class="note" id="restoreFileName">Ningún archivo elegido</span><button class="ghost" id="doRestore" type="button" disabled>Restaurar</button></div>
-<input type="file" id="restoreBackup" accept=".json" class="visually-hidden" tabindex="-1" aria-hidden="true">
+<input type="file" id="restoreBackup" accept=".bonavista,.json" class="visually-hidden" tabindex="-1" aria-hidden="true">
 <p class="note status" id="restoreStatus"></p>
-<p class="note">Para pasar los datos a otro navegador u ordenador, o como copia de seguridad. Estos datos viven solo en este navegador y pueden perderse si se borra su almacenamiento; descarga una copia de vez en cuando y guárdala en la carpeta que acuerdes con Pablo. «Elegir archivo» + «Restaurar» la vuelve a cargar sin duplicar nada.</p></div>
+<p class="note">Recupera el dashboard completo tal como estaba en esa copia, en este navegador. Antes de restaurar se guarda automáticamente una copia del estado actual, por si hace falta deshacerlo.</p></div>
+<details class="avanzado"><summary>Opciones avanzadas</summary>
+<div class="history-group"><b>Ver una carga anterior</b><div class="history-row"><select id="snapshots" aria-label="Cargas guardadas"></select><button class="ghost" id="openSnapshot">Abrir</button></div><p class="note">No sube ningún archivo: elige una fecha ya guardada en este navegador para volver a ver ese momento.</p></div>
 <div class="history-group"><b>Histórico (comparación con años anteriores)</b>
 <div class="history-row"><button class="ghost" id="chooseHistorico" type="button">Elegir archivo de histórico…</button><span class="note" id="historicoFileName">Ningún archivo elegido</span><button class="ghost" id="doImportHistorico" type="button" disabled>Importar</button></div>
 <input type="file" id="historicoFile" accept=".json" class="visually-hidden" tabindex="-1" aria-hidden="true">
 <p class="note status" id="historicoStatus"></p>
-<p class="note">Carga aquí el archivo agregado de años anteriores (2024, 2025, 2026…), reconstruido a partir de las exportaciones reales de Pablo, sin ningún dato de huésped. Una vez importado queda guardado en este navegador, activa las comparaciones «vs. año anterior» en Evolución, y se incluye automáticamente en la próxima «Descargar copia»: así cualquier copia de seguridad ya lleva todo, no información parcial.</p>
-</div>
+<p class="note">Solo hace falta una vez, al preparar el dashboard: carga el archivo agregado de años anteriores (2024, 2025, 2026…), reconstruido a partir de las exportaciones reales de Pablo, sin ningún dato de huésped. Queda guardado en este navegador y se incluye automáticamente en cada copia de seguridad.</p></div>
+</details>
+</details>
 </div>
 <details class="panel assumptions"><summary>Hipótesis de cálculo · editar y validar con Pablo</summary><p class="note">Los valores sugeridos son hipótesis basadas en los apartamentos observados en la muestra, no el inventario confirmado. Cambiarlos recalcula los indicadores.</p><div id="assumptionControls"></div></details>
 <details class="panel"><summary>Calidad y alcance de los datos</summary><div id="quality" class="alert"></div><p class="note">El periodo actual se agrupa por fecha de llegada; las estancias que cruzan meses todavía no se reparten entre noches. Las tarifas externas requieren definir comparables y fechas; solo se incorporarán importes verificables.</p></details>
