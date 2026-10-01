@@ -66,10 +66,10 @@ async function initFolderUi(){
   };
   $('reconnectFolder').onclick=async()=>{
     const {handle}=await reconnectFolder();
-    if(!handle){renderFolderStatus('No hay ninguna carpeta guardada todavía.',true);return}
+    if(!handle){renderFolderStatus('Todavía no has activado el guardado automático en este ordenador.',true);return}
     const ok=await requestFolderPermission(handle);
-    if(!ok){renderFolderStatus('No se concedió permiso sobre la carpeta.',true);return}
-    renderFolderStatus('✓ Carpeta reconectada. Guardando aquí automáticamente.');
+    if(!ok){renderFolderStatus('No se ha podido activar. Inténtalo de nuevo.',true);return}
+    renderFolderStatus('✓ Guardando aquí automáticamente de nuevo.');
     $('reconnectFolder').classList.add('hidden');$('connectFolder').classList.add('hidden');
     $('recoverNote').classList.remove('hidden');
   };
@@ -82,7 +82,7 @@ async function initFolderUi(){
   }else if(status.needsPermission){
     $('connectFolder').classList.add('hidden');
     $('reconnectFolder').classList.remove('hidden');
-    renderFolderStatus('Ya elegiste una carpeta antes: pulsa «Reconectar» para seguir usándola (el navegador pide confirmarlo en cada sesión).');
+    renderFolderStatus('Pulsa para seguir guardando el dashboard automáticamente, como ya hacías antes (el navegador lo pide de vez en cuando, por seguridad).');
   }
 }
 refreshSnapshots().catch(e=>$('status').textContent='No se puede acceder al almacenamiento local: '+e.message);
