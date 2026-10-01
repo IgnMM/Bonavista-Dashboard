@@ -58,12 +58,18 @@ function mergeHistorico(existing,incoming){
   let added=0,updated=0;
   for(const row of incoming.rows){const key=row.month+'|'+row.building;if(byKey.has(key))updated++;else added++;byKey.set(key,row)}
   const rows=[...byKey.values()].sort((a,b)=>a.month===b.month?a.building.localeCompare(b.building):a.month.localeCompare(b.month));
+  // dailyRows (reparto noche a noche, para rangos de fechas personalizados): mismo upsert por fecha+edificio.
+  const dailyByKey=new Map();
+  for(const row of (existing?.dailyRows||[]))dailyByKey.set(row.date+'|'+row.building,row);
+  for(const row of (incoming.dailyRows||[]))dailyByKey.set(row.date+'|'+row.building,row);
+  const dailyRows=[...dailyByKey.values()].sort((a,b)=>a.date===b.date?a.building.localeCompare(b.building):a.date.localeCompare(b.date));
   const merged={
     format:'bonavista-baseline-v1',
     method:incoming.method||existing?.method,
     generatedAt:incoming.generatedAt||existing?.generatedAt,
     sources:[...(existing?.sources||[]),...(incoming.sources||[])],
-    rows
+    rows,
+    dailyRows
   };
   return {merged,added,updated,kept:rows.length-added-updated};
 }
@@ -85,7 +91,8 @@ function wireHistoricoImport(){
       await saveHistoricalToDb(merged);
       historical=merged;
       const months=[...new Set(merged.rows.map(r=>r.month))].sort();
-      statusEl.textContent='✓ Histórico combinado: '+added+' filas nuevas, '+updated+' actualizadas, '+kept+' ya existentes conservadas sin tocar. Total '+merged.rows.length+' filas ('+(months[0]||'')+' a '+(months.at(-1)||'')+'). Ya se compara en Evolución y se incluirá en la próxima copia de dashboard.';
+      const dailyNote=merged.dailyRows?.length?' Desglose diario: '+merged.dailyRows.length+' días-edificio (activa la comparación por fechas personalizadas en Evolución).':'';
+      statusEl.textContent='✓ Histórico combinado: '+added+' filas nuevas, '+updated+' actualizadas, '+kept+' ya existentes conservadas sin tocar. Total '+merged.rows.length+' filas ('+(months[0]||'')+' a '+(months.at(-1)||'')+').'+dailyNote+' Se incluirá en la próxima copia de dashboard.';
       fileInput.value='';nameEl.textContent='Ningún archivo elegido';
       if(typeof saveVersionToFolderIfConnected==='function')await saveVersionToFolderIfConnected();
       if(payload&&typeof render==='function')render();

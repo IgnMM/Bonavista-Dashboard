@@ -96,9 +96,82 @@ function renderEvolutionMain(){
  $('paceMonthly').style.display=mode==='month'?'':'none';
  $('ytdCurve').style.display=mode==='year'?'':'none';
  $('rollingMAT').style.display=mode==='tam'?'':'none';
+ if($('customRange'))$('customRange').style.display=mode==='custom'?'':'none';
  if(mode==='month')renderPaceMonthly();
  else if(mode==='year')renderYtdCurve();
- else renderMAT();
+ else if(mode==='tam')renderMAT();
+ else renderCustomRange();
+}
+/* Fechas personalizadas: reparte cada reserva viva noche a noche sobre el rango elegido (no por
+   mes de llegada), y compara contra el histórico ya repartido noche a noche (dailyRows) en el
+   rango de comparación (por defecto, mismas fechas un año antes; editable para fiestas móviles
+   como Semana Santa). */
+function daysBetweenDates(a,b){return Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000)}
+function addDaysStr(dateStr,n){const d=new Date(dateStr+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+function yearAgoStr(dateStr){if(!dateStr)return dateStr;const d=new Date(dateStr+'T00:00:00Z');d.setUTCFullYear(d.getUTCFullYear()-1);return d.toISOString().slice(0,10)}
+function liveRangeStats(start,end,building){
+ let gross=0,rentalNet=0,nights=0;
+ for(const x of latest()){
+  if(building&&!matchBuilding(x.building,building))continue;
+  if(!x.arrival||!x.departure)continue;
+  const lastNight=addDaysStr(x.departure,-1);
+  const overlapStart=x.arrival>start?x.arrival:start,overlapEnd=lastNight<end?lastNight:end;
+  if(overlapStart>overlapEnd)continue;
+  const overlapNights=daysBetweenDates(overlapStart,overlapEnd)+1;
+  const totalNights=x.nights||daysBetweenDates(x.arrival,x.departure);
+  if(totalNights<=0)continue;
+  gross+=(x.gross||0)*overlapNights/totalNights;
+  rentalNet+=((x.rental||0)-(x.discount||0)+(model.cleaning?(x.cleaning||0):0))*overlapNights/totalNights;
+  nights+=overlapNights;
+ }
+ return {gross,rentalNet,nights};
+}
+function historicalRangeStats(start,end,building){
+ let gross=0,rentalNet=0,nights=0;
+ for(const r of historical?.dailyRows||[]){
+  if(r.date<start||r.date>end)continue;
+  if(building&&!matchBuilding(r.building,building))continue;
+  gross+=r.gross||0;rentalNet+=r.rentalNet||0;nights+=r.nights||0;
+ }
+ return {gross,rentalNet,nights};
+}
+function rangeAvailable(start,end,building){
+ if(!start||!end||start>end)return 0;
+ const days=daysBetweenDates(start,end)+1;
+ const units=building?[...building]:[...new Set([...latest().map(x=>x.building),...(historical?.dailyRows||[]).map(x=>x.building)])];
+ return units.reduce((s,b)=>s+(Number(model.units[b])||0)*days,0);
+}
+function renderCustomRange(){
+ const target=$('customRange');if(!target||!payload)return;
+ const building=selectedBuilding();
+ const prior=target.querySelector('#rangeStart')?{start:target.querySelector('#rangeStart').value,end:target.querySelector('#rangeEnd').value,prevStart:target.querySelector('#rangePrevStart').value,prevEnd:target.querySelector('#rangePrevEnd').value}:{};
+ const todayIso=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid'}).format(new Date());
+ const start=prior.start||(todayIso.slice(0,8)+'01'),end=prior.end||todayIso;
+ const prevStart=prior.prevStart||yearAgoStr(start),prevEnd=prior.prevEnd||yearAgoStr(end);
+ const valid=start&&end&&start<=end,prevValid=prevStart&&prevEnd&&prevStart<=prevEnd;
+ const now=valid?liveRangeStats(start,end,building):null;
+ const before=prevValid?historicalRangeStats(prevStart,prevEnd,building):null;
+ const availNow=valid?rangeAvailable(start,end,building):0,availPrev=prevValid?rangeAvailable(prevStart,prevEnd,building):0;
+ const adr=v=>v&&v.nights?v.rentalNet/(1+Number(model.vat||0)/100)/v.nights:null;
+ const revpar=(v,a)=>v&&a>0?(v.rentalNet/(1+Number(model.vat||0)/100))/a:null;
+ const occ=(v,a)=>v&&a>0?v.nights/a:null;
+ const cases=[
+  ['Ventas PVP',v=>v?v.gross:null,amount],
+  ['Noches',v=>v?v.nights:null,numeric],
+  ['ADR sin IVA',v=>adr(v),amount],
+  ['Ocupación',(v,a)=>occ(v,a),percent],
+  ['RevPAR sin IVA',(v,a)=>revpar(v,a),amount]
+ ];
+ const body=!valid?'<p class="note">Elige una fecha de inicio del periodo actual anterior o igual a la de fin.</p>'
+  :!prevValid?'<p class="note">Revisa el periodo de comparación: la fecha de inicio debe ser anterior o igual a la de fin.</p>'
+  :!historical?.dailyRows?.length?'<p class="note">Importa el histórico (con desglose diario) en «Opciones avanzadas» para poder comparar con el año anterior.</p>'
+  :`<div class="mat-grid">${cases.map(([label,fn,format])=>{const a=fn(now,availNow),b=fn(before,availPrev),delta=(a!==null&&b)?(a-b)/b:null;return `<div class="mat-cell"><span>${safe(label)}</span><strong>${a===null?'—':safe(format(a))}</strong><small>Año anterior: ${b===null?'—':safe(format(b))}${delta!==null?' · '+safe((delta>=0?'+':'')+percent(delta)):''}</small></div>`}).join('')}</div>
+  <p class="note">Periodo actual: reservas reales con fecha de estancia dentro del rango, repartidas noche a noche (no por mes de llegada). Periodo de comparación: histórico importado, también noche a noche. Ocupación y RevPAR usan el inventario por edificio sin descontar bloqueos.</p>`;
+ target.innerHTML=`<div class="custom-range-row">
+  <div class="custom-range-group"><b>Periodo actual</b><div class="custom-range-dates"><label>Desde <input type="date" id="rangeStart" value="${safe(start)}"></label><label>Hasta <input type="date" id="rangeEnd" value="${safe(end)}"></label></div></div>
+  <div class="custom-range-group"><b>Periodo de comparación</b><div class="custom-range-dates"><label>Desde <input type="date" id="rangePrevStart" value="${safe(prevStart)}"></label><label>Hasta <input type="date" id="rangePrevEnd" value="${safe(prevEnd)}"></label></div></div>
+ </div>${body}`;
+ ['rangeStart','rangeEnd','rangePrevStart','rangePrevEnd'].forEach(id=>target.querySelector('#'+id)?.addEventListener('change',renderCustomRange));
 }
 function matCurve(building,metric,format,fn){
  const months=[...new Set([...(historical?.rows||[]).map(x=>x.month),...latest().map(x=>x.month)])].sort();
@@ -141,7 +214,7 @@ function periodMonths(){
  return {months,prevMonths:months.map(m=>monthEarlier(m,-12)),anchor:resolvedAnchor,isOpen:resolvedOpen,mode};
 }
 window.periodMonths=periodMonths;
-const PERIOD_LABELS={month:'Mes',year:'Acumulado año',tam:'TAM · últimos 12 meses'};
+const PERIOD_LABELS={month:'Mes',year:'Acumulado año',tam:'TAM · últimos 12 meses',custom:'Fechas personalizadas'};
 function ensurePeriodControl(){
  if($('periodTabs'))return;
  const anchor=document.querySelector('.panel.pace');if(!anchor)return;
@@ -155,6 +228,7 @@ function renderPeriodControl(){
  const mode=window.PERIOD_MODE||'month',p=periodMonths();
  document.querySelectorAll('#periodTabs [data-mode]').forEach(btn=>btn.classList.toggle('active',btn.dataset.mode===mode));
  const label=$('periodLabel');if(!label)return;
+ if(mode==='custom'){label.textContent='Elige el rango de fechas abajo; se compara con el periodo que indiques del año anterior.';return}
  if(!p){label.textContent='';return}
  const first=p.months[0],last=p.months.at(-1),range=p.months.length>1?`${first} a ${last}`:first;
  const coverage=p.months.filter(m=>latest().some(x=>x.month===m)).length;
