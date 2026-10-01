@@ -3,6 +3,23 @@ let payload=null;const $=id=>document.getElementById(id);const euro=n=>new Intl.
 window.SELECTED_BUILDINGS=new Set();
 /* Uso de Ignacio, no de Pablo: abrir con ?avanzado=1 en la URL para ver cargas anteriores e importar histórico. */
 if(new URLSearchParams(location.search).has('avanzado'))document.getElementById('avanzadoWrap')?.classList.remove('hidden');
+/* Elegir qué bloques entran al imprimir/PDF (p. ej. un informe de un edificio solo con ventas,
+   sin mercado). El filtro de Edificio arriba ya recorta los datos; esto recorta qué secciones. */
+function applyPrintBlockSelection(){
+  document.querySelectorAll('.print-block-check').forEach(cb=>{
+    const section=document.querySelector(`.print-block[data-print-block="${cb.dataset.printBlock}"]`);
+    if(section)section.toggleAttribute('data-print-excluded',!cb.checked);
+  });
+}
+function initPrintSelect(){
+  const toggle=document.getElementById('printSelectToggle'),panel=document.getElementById('printSelectPanel');
+  if(!toggle||!panel)return;
+  toggle.addEventListener('click',()=>panel.classList.toggle('hidden'));
+  document.addEventListener('click',e=>{if(!document.getElementById('printSelect').contains(e.target))panel.classList.add('hidden')});
+  document.querySelectorAll('.print-block-check').forEach(cb=>cb.addEventListener('change',applyPrintBlockSelection));
+  applyPrintBlockSelection();
+}
+initPrintSelect();
 /* Confirmado por Pablo: directo es todo lo que no venga de Booking, Expedia, Airbnb u Oddo (agente). */
 const NON_DIRECT_CHANNEL_MARKERS=['booking','expedia','airbnb','oddo'];
 function isDirectChannel(name){return !NON_DIRECT_CHANNEL_MARKERS.some(p=>String(name||'').toLowerCase().includes(p))}
