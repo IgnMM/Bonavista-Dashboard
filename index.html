@@ -52,6 +52,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 .base-compare-control{display:flex;justify-content:flex-end;margin-bottom:10px}.base-compare-control label{font-size:11px;font-weight:700;color:#595557;display:flex;align-items:center;gap:8px}.base-compare-control select{border:1px solid #E5DDDF;border-radius:8px;padding:7px 9px;background:white}.card .yoy{display:block;margin-top:6px;font-size:11px;font-weight:700;color:#9D001C}@media print{.base-compare-control{display:none}}
 #simulatedBanner:empty{display:none}#simulatedBanner{background:#fff3cd;border:2px solid #cb9654;color:#5c4413;border-radius:12px;padding:13px 18px;margin:18px 0;font-size:13px;font-weight:700;line-height:1.5}#simulatedBanner b{display:block;font-size:15px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.02em}#simulatedBanner span{font-weight:400}@media print{#simulatedBanner{border-color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 #topline:empty{display:none;padding:0;margin:0;border:0}.topline-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:10px}.topline-tile{background:#FAF9F8;border:1px solid #E5DDDF;border-radius:11px;padding:14px}.topline-tile span{display:block;font-size:11px;font-weight:700;color:#595557}.topline-tile strong{display:block;font-size:26px;margin:6px 0 4px;color:#262629}.topline-tile small{display:block;font-size:11px;color:#696568}.topline-tile.good small{color:#2f7d4f;font-weight:700}.topline-tile.bad small{color:#9D001C;font-weight:700}@media(max-width:800px){.topline-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:540px){.topline-grid{grid-template-columns:1fr}}@media print{.topline-tile{padding:8px}.topline-tile strong{font-size:19px}}
+.conclusiones-toggle{margin:14px 0 0}.conclusiones-toggle>summary{cursor:pointer;list-style:none;font-size:15px;font-weight:700;color:#333136;padding:4px 0}.conclusiones-toggle>summary::-webkit-details-marker{display:none}.conclusiones-toggle>summary::before{content:"▸ ";color:#E4042C;font-size:13px}.conclusiones-toggle[open]>summary::before{content:"▾ "}.conclusiones-toggle:has(#highlights:empty):has(#watchouts:empty){display:none}@media print{.conclusiones-toggle>summary::before{display:none}.conclusiones-toggle:not([open])>*:not(summary){display:block!important}}
 #highlights:empty,#watchouts:empty{display:none;padding:0;margin:0;border:0}.highlights-row:has(#highlights:empty):has(#watchouts:empty){display:none}.highlights-list{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:9px}.highlights-list li{padding:10px 13px;border-radius:9px;font-size:13px;line-height:1.4;border-left:4px solid #ccc;background:#FAF9F8}.highlights-list li.hl-good{border-left-color:#2f7d4f;background:#f2f8f4}.highlights-list li.hl-bad{border-left-color:#E4042C;background:#FAF5F5}.highlights-list li.hl-warn{border-left-color:#cb9654;background:#fff9f1}.highlights-list li.hl-info{border-left-color:#696568;background:#FAF9F8}
 @media(max-width:900px){.pending{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.intro{display:block}.pill{display:inline-block;margin-bottom:14px}.pending{grid-template-columns:1fr}.question-grid{grid-template-columns:1fr}header{padding:20px}}
@@ -128,7 +129,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 <section class="print-block" data-print-block="mes-actual">
 <div class="block-header"><span class="block-number">1</span><div><h2>Mes actual</h2><p class="note">El mes en curso, siempre a fecha de la última descarga. No cambia al usar el selector de Evolución, más abajo.</p></div></div>
 <div class="panel pulse" id="topline"></div>
-<div class="section highlights-row"><div class="panel highlights-block" id="highlights"></div><div class="panel highlights-block" id="watchouts"></div></div>
+<details class="conclusiones-toggle" open><summary>Conclusiones</summary><div class="section highlights-row"><div class="panel highlights-block" id="highlights"></div><div class="panel highlights-block" id="watchouts"></div></div></details>
 </section>
 <div id="dashboard" class="hidden">
 <section class="print-block" data-print-block="evolucion">
@@ -165,7 +166,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 </div><p class="footer">BONAVISTA · Los archivos BOOKIPRO se procesan en este navegador; el servicio de mercado se consultará al pulsar el botón cuando esté activo.</p>
 <div id="detailOverlay" class="detail-overlay hidden"><div class="detail-modal"><button id="detailClose" class="ghost" type="button">Cerrar ✕</button><div class="panel detail" id="detail"></div></div></div>
 </div>
-<script src="vendor/jszip.min.js"></script><script src="parser.js?v=202610010854"></script><script src="storage.js?v=202610010854"></script><script src="folder.js?v=202610010854"></script><script src="portfolio.js?v=202610010854"></script><script src="dashboard.js?v=202610010854"></script><script src="enhancements.js?v=202610010854"></script><script src="details.js?v=202610010854"></script><script src="baseline.js?v=202610010854"></script>
+<script src="vendor/jszip.min.js"></script><script src="parser.js?v=202610020819"></script><script src="storage.js?v=202610020819"></script><script src="folder.js?v=202610020819"></script><script src="portfolio.js?v=202610020819"></script><script src="dashboard.js?v=202610020819"></script><script src="enhancements.js?v=202610020819"></script><script src="details.js?v=202610020819"></script><script src="baseline.js?v=202610020819"></script>
 <script>
 // Piloto (2026-09-30): lector local que Ignacio ejecuta en su portátil durante la demo con Pablo.
 // Solo funciona si ese servicio está corriendo en 127.0.0.1:8765; si no, el botón falla con un
@@ -173,4 +174,4 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 // esto se mantiene activo o se retira tras la demo.
 window.BONAVISTA_MARKET_ENDPOINT='http://127.0.0.1:8765/api/market-refresh';
 </script>
-<script src="market.js?v=202610010854"></script><script src="reviews-seed.js?v=202610010854"></script><script src="comparative.js?v=202610010854"></script></body></html>
+<script src="market.js?v=202610020819"></script><script src="reviews-seed.js?v=202610020819"></script><script src="comparative.js?v=202610020819"></script></body></html>
