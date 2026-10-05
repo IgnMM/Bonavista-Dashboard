@@ -1,21 +1,28 @@
 /* Month-to-date pace, prior-year full-month benchmark and rolling twelve-month metrics. */
 (function(){
 'use strict';
-const KEYS=['gross','nights','bookings','guestsTotal','guestsKnown','leadTotal','rentalNet'];
+const KEYS=['gross','nights','bookings','guestsTotal','guestsKnown','leadTotal','rentalNet','overlapNights','overlapRentalNet'];
 const DIMS=['channel','rate','country','guests','stay','lead','arrival'];
-function empty(){return {gross:0,nights:0,bookings:0,guestsTotal:0,guestsKnown:0,leadTotal:0,rentalNet:0,categories:Object.fromEntries(DIMS.map(k=>[k,{}]))}}
+function empty(){return {gross:0,nights:0,bookings:0,guestsTotal:0,guestsKnown:0,leadTotal:0,rentalNet:0,overlapNights:0,overlapRentalNet:0,categories:Object.fromEntries(DIMS.map(k=>[k,{}]))}}
 function add(a,b){if(!b)return a;for(const key of KEYS)a[key]+=Number(b[key]||0);for(const dim of DIMS)for(const [name,entry] of Object.entries(b.categories?.[dim]||{})){const t=a.categories[dim][name]??={gross:0,count:0,nights:0};for(const k of ['gross','count','nights'])t[k]+=Number(entry[k]||0)}return a}
-function current(month,building){const a=empty();for(const x of latest()){if(x.month!==month||(building&&!matchBuilding(x.building,building)))continue;a.gross+=x.gross||0;a.nights+=x.nights||0;a.bookings++;a.rentalNet+=(x.rental||0)-(x.discount||0)+(model.cleaning?(x.cleaning||0):0);a.leadTotal+=x.lead||0;if(x.guests!==null&&Number.isFinite(x.guests)){a.guestsTotal+=x.guests;a.guestsKnown++}const stay=x.nights<=2?'1–2 noches':x.nights<=4?'3–4 noches':x.nights<=7?'5–7 noches':'8+ noches',lead=x.lead<=7?'0–7 días':x.lead<=30?'8–30 días':x.lead<=90?'31–90 días':'Más de 90 días';for(const [dim,name] of Object.entries({channel:x.channel,rate:x.rate,country:x.country,guests:x.guests===null?'Sin dato':String(x.guests),stay,lead,arrival:x.arrival})){const t=a.categories[dim][name||'Sin dato']??={gross:0,count:0,nights:0};t.gross+=x.gross||0;t.count++;t.nights+=x.nights||0}}return a}
-function historic(month,building,day){const a=empty();for(const row of historical?.rows||[]){if(row.month!==month||(building&&!matchBuilding(row.building,building))||!row.analysis)continue;if(day===undefined)add(a,row.analysis);else{add(a,row.analysisBeforeMonth);for(const [d,delta] of Object.entries(row.analysisDailyIncrements||{}))if(Number(d)<=day)add(a,delta)}}return a}
+function current(month,building){const a=empty();for(const x of latest()){if(x.month!==month||(building&&!matchBuilding(x.building,building)))continue;a.gross+=x.gross||0;a.nights+=x.nights||0;a.bookings++;a.rentalNet+=(x.rental||0)-(x.discount||0)+(model.cleaning?(x.cleaning||0):0);a.leadTotal+=x.lead||0;if(x.guests!==null&&Number.isFinite(x.guests)){a.guestsTotal+=x.guests;a.guestsKnown++}const stay=x.nights<=2?'1–2 noches':x.nights<=4?'3–4 noches':x.nights<=7?'5–7 noches':'8+ noches',lead=x.lead<=7?'0–7 días':x.lead<=30?'8–30 días':x.lead<=90?'31–90 días':'Más de 90 días';for(const [dim,name] of Object.entries({channel:x.channel,rate:x.rate,country:x.country,guests:x.guests===null?'Sin dato':String(x.guests),stay,lead,arrival:x.arrival})){const t=a.categories[dim][name||'Sin dato']??={gross:0,count:0,nights:0};t.gross+=x.gross||0;t.count++;t.nights+=x.nights||0}}const ov=liveRangeStats(month+'-01',month+'-'+String(monthDays(month)).padStart(2,'0'),building);a.overlapNights=ov.nights;a.overlapRentalNet=ov.rentalNet;return a}
+function historic(month,building,day){const a=empty();let finalArrivalNights=0;for(const row of historical?.rows||[]){if(row.month!==month||(building&&!matchBuilding(row.building,building))||!row.analysis)continue;finalArrivalNights+=Number(row.analysis.nights||0);if(day===undefined)add(a,row.analysis);else{add(a,row.analysisBeforeMonth);for(const [d,delta] of Object.entries(row.analysisDailyIncrements||{}))if(Number(d)<=day)add(a,delta)}}
+ /* Ocupación/ADR/RevPAR reales usan noches ocupadas dentro del mes (reparto noche a noche), igual que el año en curso; con corte por día se escala por la parte ya reservada. */
+ let on=0,orn=0,found=false;for(const r of historical?.dailyRows||[]){if(!r.date.startsWith(month+'-'))continue;if(building&&!matchBuilding(r.building,building))continue;found=true;on+=r.nights||0;orn+=r.rentalNet||0}
+ if(found){const scale=day===undefined?1:(finalArrivalNights>0?Math.min(1,a.nights/finalArrivalNights):0);a.overlapNights=on*scale;a.overlapRentalNet=orn*scale}else{a.overlapNights=a.nights;a.overlapRentalNet=a.rentalNet}
+ return a}
 function hasHistory(month,building){return !!historical?.rows?.some(x=>x.month===month&&(!building||matchBuilding(x.building,building))&&x.analysis)}
 const amount=v=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v);
 const numeric=v=>new Intl.NumberFormat('es-ES',{maximumFractionDigits:1}).format(v);
 const percent=v=>new Intl.NumberFormat('es-ES',{style:'percent',maximumFractionDigits:1}).format(v);
+function monthDays(month){const [y,m]=month.split('-').map(Number);return new Date(Date.UTC(y,m,0)).getUTCDate()}
 function monthEarlier(month,delta){const [y,m]=month.split('-').map(Number),d=new Date(Date.UTC(y,m-1+delta,1));return d.toISOString().slice(0,7)}
 function reportCurrentMonth(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit'}).format(new Date())}
 function defaultAnchorMonth(){const months=[...new Set(latest().map(x=>x.month))].sort();if(!months.length)return undefined;const past=months.filter(m=>m<=reportCurrentMonth());return past.length?past.at(-1):months.at(-1)}
 window.defaultAnchorMonth=defaultAnchorMonth;
-function asOfDay(month){const iso=window.PORTFOLIO_ASOF?.[month]||payload?.meta?.as_of||new Date().toISOString().slice(0,10);return Math.max(1,Math.min(31,Number(iso.slice(8,10))||1))}
+function asOfDay(month){const iso=window.PORTFOLIO_ASOF?.[month]||payload?.meta?.as_of||new Date().toISOString().slice(0,10);
+ /* El corte es la fecha de la última carga. Si el mes comparado es posterior a ese mes (p. ej. octubre con datos a 30/9), a esa fecha del año anterior solo estaba lo reservado antes del mes (día 0); si es anterior, ya está cerrado. */
+ const asMonth=iso.slice(0,7);if(month>asMonth)return 0;if(month<asMonth)return 31;return Math.max(1,Math.min(31,Number(iso.slice(8,10))||1))}
 function bars(title,entries,formatter=amount){const rows=entries.slice(0,title.startsWith('Producción por día')?31:title.startsWith('Ventas PVP mensual')?12:10),max=Math.max(1,...rows.flatMap(x=>x.values).filter(x=>x!==null).map(x=>x||0));return `<div class="panel comparison-card ${title.startsWith('Producción por día')?'daily-comparison':''}"><h2>${safe(title)}</h2>${rows.length?`<div class="comparison-head"><span></span><span>Actual</span><span>Año ant. a fecha</span><span>Año ant. cierre</span></div>${rows.map(({label,values})=>`<div class="comparison-row"><b title="${safe(label)}">${safe(label)}</b>${values.map((v,i)=>`<span title="${safe(label)} · ${['Actual','Año anterior a fecha','Año anterior cierre'][i]}: ${v===null?'sin dato':safe(formatter(v))}"><em class="cmp-track"><i class="cmp-fill cmp-${i}" style="width:${v===null?0:Math.max(1,v/max*100)}%"></i></em><strong>${v===null?'—':safe(formatter(v))}</strong></span>`).join('')}</div>`).join('')}`:'<p class="note">Sin datos para este gráfico.</p>'}</div>`}
 function compareCharts(){
  if(!payload)return;
@@ -199,8 +206,8 @@ function detailMetric(stats,key,months,building){
  const monthList=Array.isArray(months)?months:[months];
  const units=building?[...building]:[...new Set(monthList.flatMap(m=>[...monthBuildings(m)]))];
  const available=monthList.reduce((sum,m)=>sum+units.reduce((n,b)=>n+(Number(model.units[b])||0)*new Date(Number(m.slice(0,4)),Number(m.slice(5,7)),0).getDate()-(Number(model.blocks?.[b])||0),0),0);
- const revenue=stats.rentalNet/(1+Number(model.vat||0)/100);
- switch(key){case 'gross':return stats.gross;case 'count':return stats.bookings;case 'nights':return stats.nights;case 'stay':return stats.bookings?stats.nights/stats.bookings:null;case 'guests':return stats.guestsKnown?stats.guestsTotal/stats.guestsKnown:null;case 'lead':return stats.bookings?stats.leadTotal/stats.bookings:null;case 'direct':return stats.gross?Object.entries(stats.categories.channel).reduce((s,[name,value])=>s+(isDirectChannel(name)?value.gross:0),0)/stats.gross:null;case 'adr':return stats.nights?revenue/stats.nights:null;case 'occupancy':return available>0?stats.nights/available:null;case 'revpar':return available>0?revenue/available:null;default:return null}
+ const ovNights=stats.overlapNights||stats.overlapRentalNet?stats.overlapNights:stats.nights,ovRental=stats.overlapNights||stats.overlapRentalNet?stats.overlapRentalNet:stats.rentalNet;const revenue=ovRental/(1+Number(model.vat||0)/100);
+ switch(key){case 'gross':return stats.gross;case 'count':return stats.bookings;case 'nights':return stats.nights;case 'stay':return stats.bookings?stats.nights/stats.bookings:null;case 'guests':return stats.guestsKnown?stats.guestsTotal/stats.guestsKnown:null;case 'lead':return stats.bookings?stats.leadTotal/stats.bookings:null;case 'direct':return stats.gross?Object.entries(stats.categories.channel).reduce((s,[name,value])=>s+(isDirectChannel(name)?value.gross:0),0)/stats.gross:null;case 'adr':return ovNights?revenue/ovNights:null;case 'occupancy':return available>0?ovNights/available:null;case 'revpar':return available>0?revenue/available:null;default:return null}
 }
 window.PERIOD_MODE=window.PERIOD_MODE||'month';
 function periodMonths(){
@@ -397,7 +404,7 @@ function renderTopline(){
  holder.innerHTML=`<div class="summary-top"><h2>${safe(month)} · ${safe(buildingLabel(building))}</h2><span class="mini">Datos a ${safe(asOf?new Date(asOf).toLocaleDateString('es-ES'):'—')}</span></div>
  ${priorClose?`<div class="pace-goal"><span>CIERRE ${safe(prev)} · REFERENCIA A ALCANZAR</span><strong>${safe(amount(priorClose))}</strong><div class="pace-goal-progress"><i style="width:${Math.min(100,Math.max(0,progress||0))}%"></i></div><small>${progress===null?'Sin referencia':safe(String(progress)+' % del cierre anterior')} · diferencia ${safe(amount((pvp.now||0)-priorClose))}</small></div>`:''}
  <div class="topline-grid">
-  ${toplineTile('Ventas PVP en cartera · día '+day,pvp.now,amount,pvpDelta)}
+  ${toplineTile('Ventas PVP en cartera'+(day===0?' · al cierre del mes anterior':' · día '+day),pvp.now,amount,pvpDelta)}
   ${toplineTile('Ocupación estimada del mes',occ.now,percent,occDelta,true)}
   ${toplineTile('ADR sin IVA (estimado)',adr.now,amount,adrDelta)}
   ${toplineTile('RevPAR sin IVA (estimado)',revpar.now,amount,revparDelta)}
