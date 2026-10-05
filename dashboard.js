@@ -115,7 +115,7 @@ function renderSalesExtras(rows){
  const directGross=rows.filter(x=>isDirectChannel(x.channel)).reduce((a,b)=>a+b.gross,0);
  $('directNote').textContent=gross?'Venta directa: '+fmt(directGross/gross*100)+' % del canal.':'';
  const cancelKnown=typeof model!=='undefined'&&model.cancelled!==null;
- $('ritmoNote').textContent=cancelKnown?'':'Ritmo de reservas: cancelaciones y pickup sin datos todavía; se completará con la exportación de canceladas y una segunda captura del mismo mes.';
+ $('ritmoNote').textContent=cancelKnown?'':'Ritmo de reservas: cancelaciones sin datos todavía; se completará con la exportación de canceladas.';
 }
 function renderServiceBreakdown(rows){
  const holder=$('serviceBreakdown');if(!holder)return;

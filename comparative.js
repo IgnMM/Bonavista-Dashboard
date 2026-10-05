@@ -422,5 +422,35 @@ function renderTopline(){
   ${toplineTile('RevPAR sin IVA (estimado)',revpar.now,amount,revparDelta,false,altFor('revpar'))}
  </div><p class="note">La cifra del año anterior al mismo día es una reconstrucción desde fecha de reserva y estado final; no recupera cancelaciones ni cambios de importe posteriores. Ocupación, ADR y RevPAR dependen del inventario y las reglas ya confirmadas con Pablo. El acumulado del año está en el bloque «Evolución», con Acumulado año.</p>`;
 }
-const olderRender=render;render=function(){olderRender();renderEvolutionMain();compareCharts();renderKpi();renderHighlights();renderTopline();renderContextLine();renderSnapshotBanner()};
+/* Pickup: lo que ha cambiado desde la carga anterior, mes a mes, comparando capturas guardadas por id de reserva. Una reserva que estaba y ya no está se cuenta como cancelada o retirada. */
+async function renderPickup(){
+ const holder=$('pickup');if(!holder)return;
+ if(!payload||window.VIEWING_SNAPSHOT){holder.innerHTML='';return}
+ let snaps;try{snaps=await listSnapshots()}catch(e){holder.innerHTML='';return}
+ const building=selectedBuilding(),asOf=payload.meta.as_of||'',asOfMonth=asOf.slice(0,7);
+ const inScope=x=>!building||matchBuilding(x.building,building);
+ const months=[...new Set(latest().map(x=>x.month))].filter(m=>!asOfMonth||m>=asOfMonth).sort();
+ const rows=[];let prevAsOf='';
+ for(const m of months){
+  const i=snaps.findIndex(sn=>sn.data.bookings.some(x=>x.month===m));
+  if(i<0)continue;
+  const older=snaps.slice(i+1).find(sn=>sn.data.bookings.some(x=>x.month===m));
+  if(!older)continue;
+  const cur=snaps[i].data.bookings.filter(x=>x.month===m&&inScope(x)),old=older.data.bookings.filter(x=>x.month===m&&inScope(x));
+  const oldIds=new Map(old.map(x=>[String(x.id),x])),curIds=new Set(cur.map(x=>String(x.id)));
+  const added=cur.filter(x=>!oldIds.has(String(x.id))),gone=old.filter(x=>!curIds.has(String(x.id)));
+  const nights=cur.reduce((n,x)=>n+x.nights,0)-old.reduce((n,x)=>n+x.nights,0),gross=cur.reduce((n,x)=>n+x.gross,0)-old.reduce((n,x)=>n+x.gross,0);
+  const pa=older.data.meta.as_of||older.id.slice(0,10);if(pa>prevAsOf)prevAsOf=pa;
+  if(added.length||gone.length||nights||Math.abs(gross)>0.5)rows.push({month:m,added:added.length,gone:gone.length,nights,gross});
+ }
+ if(!prevAsOf){holder.innerHTML='';return}
+ const sum=k=>rows.reduce((n,r)=>n+r[k],0),sign=v=>(v>0?'+':v<0?'−':'')+numeric(Math.abs(v));
+ const money=v=>(v>0?'+':v<0?'−':'')+amount(Math.abs(v));
+ const tile=(label,value,cls)=>`<div class="topline-tile ${cls||''}"><span>${safe(label)}</span><strong>${value}</strong></div>`;
+ holder.innerHTML=`<div class="summary-top"><h2>Pickup · desde la carga del ${safe(new Date(prevAsOf).toLocaleDateString('es-ES'))}</h2><span class="mini">${safe(buildingLabel(building))}</span></div>
+ ${rows.length?`<div class="topline-grid">${tile('Reservas nuevas',sign(sum('added')),sum('added')>0?'good':'')}${tile('Canceladas o retiradas',sum('gone')?'−'+numeric(sum('gone')):'0',sum('gone')>0?'bad':'')}${tile('Noches netas',sign(sum('nights')),sum('nights')>0?'good':sum('nights')<0?'bad':'')}${tile('PVP neto',money(sum('gross')),sum('gross')>0?'good':sum('gross')<0?'bad':'')}</div>
+ <table class="detail-table"><thead><tr><th>Mes</th><th>Nuevas</th><th>Canceladas / retiradas</th><th>Noches</th><th>PVP</th></tr></thead><tbody>${rows.slice(0,8).map(r=>`<tr><td>${safe(r.month)}</td><td>${r.added}</td><td>${r.gone}</td><td>${safe(sign(r.nights))}</td><td>${safe(money(r.gross))}</td></tr>`).join('')}</tbody></table>`:'<p class="note">Sin cambios en los meses desde la última carga.</p>'}
+ <p class="note">Compara la última carga con la anterior de cada mes, desde el mes de la última carga en adelante. Una reserva que estaba y ya no aparece se cuenta como cancelada o retirada; los cambios de importe entran en el PVP neto.</p>`;
+}
+const olderRender=render;render=function(){olderRender();renderEvolutionMain();renderPickup();compareCharts();renderKpi();renderHighlights();renderTopline();renderContextLine();renderSnapshotBanner()};
 })();
