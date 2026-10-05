@@ -101,12 +101,12 @@ function wireHistoricoImport(){
   };
 }
 wireHistoricoImport();
-function previousYearComparison(){
+function previousYearComparison(buildingOverride){
   if(!payload||!historical)return null;
   const current=($('month').value||defaultAnchorMonth());
   if(!current)return null;
   const previous=String(Number(current.slice(0,4))-1)+current.slice(4);
-  const building=selectedBuilding();
+  const building=buildingOverride??selectedBuilding();
   const rows=historical.rows.filter(x=>x.month===previous&&(!building||matchBuilding(x.building,building)));
   if(!rows.length)return null;
   const asOf=window.PORTFOLIO_ASOF?.[current]||payload.meta.as_of||new Date().toISOString().slice(0,10);
@@ -143,8 +143,9 @@ function renderPace(){
   const priorMonthRows=latest().filter(x=>x.month===priorMonthDate&&(matchBuilding(x.building,selectedBuilding())));
   const priorMonthTotal=priorMonthRows.reduce((s,x)=>s+(x.gross||0),0);
   const delta=(value,base)=>base>0?pct((value-base)/base):'—';
+  let altHtml='';if(typeof constantPerimeter==='function'){const p=constantPerimeter(comparison.current,selectedBuilding());if(p){const alt=previousYearComparison(p.set);if(alt){const curAlt=latest().filter(x=>x.month===comparison.current&&p.set.has(x.building)).reduce((s,x)=>s+x.gross,0);altHtml=`<small>${safe(p.label[0].toUpperCase()+p.label.slice(1))}: ${safe(delta(curAlt,openMonth?alt.priorAtCut:alt.priorFinal))}</small>`}}}
   const progress=comparison.priorFinal>0?Math.round(100*current/comparison.priorFinal):null;
-  $('pace').innerHTML=`${openMonth?`<div class="pace-goal"><span>CIERRE ${safe(comparison.previous)} · REFERENCIA A ALCANZAR</span><strong>${safe(money(comparison.priorFinal))}</strong><div class="pace-goal-progress"><i style="width:${Math.min(100,Math.max(0,progress||0))}%"></i></div><small>${progress===null?'Sin referencia':safe(String(progress)+' % del cierre anterior')} · diferencia ${safe(money(current-comparison.priorFinal))}</small></div>`:''}<div class="pace-grid">${lines.map(([name,value,kind],i)=>`<div class="pace-line"><div><b>${safe(name)}</b><strong>${safe(value)}</strong></div><div class="pace-track"><div class="pace-fill ${kind}" style="width:${100*widths[i]/max}%"></div></div></div>`).join('')}</div><div class="pace-deltas"><div><span>Vs mes pasado · ${safe(priorMonthDate)}</span><strong>${priorMonthRows.length?safe(delta(current,priorMonthTotal)):'—'}</strong></div><div><span>Ventas vs AA ${openMonth?'· mismo día':'· cierre'}</span><strong>${safe(delta(current,openMonth?comparison.priorAtCut:comparison.priorFinal))}</strong></div></div><p class="note">${openMonth?`El mes actual se compara con el mismo día del año anterior; la meta muestra cómo terminó aquel mes. La cifra de ${comparison.previous} ${comparison.day===0?"antes de empezar el mes":"al día "+comparison.day} se reconstruye con fecha de reserva y estado final.`:'Ambos meses están cerrados y se comparan por su cierre completo.'} Vs mes pasado compara la producción de cada mes por fecha de estancia, no las reservas nuevas captadas; requiere una carga del mes anterior.${safe(portfolioNote)}</p>`;
+  $('pace').innerHTML=`${openMonth?`<div class="pace-goal"><span>CIERRE ${safe(comparison.previous)} · REFERENCIA A ALCANZAR</span><strong>${safe(money(comparison.priorFinal))}</strong><div class="pace-goal-progress"><i style="width:${Math.min(100,Math.max(0,progress||0))}%"></i></div><small>${progress===null?'Sin referencia':safe(String(progress)+' % del cierre anterior')} · diferencia ${safe(money(current-comparison.priorFinal))}</small></div>`:''}<div class="pace-grid">${lines.map(([name,value,kind],i)=>`<div class="pace-line"><div><b>${safe(name)}</b><strong>${safe(value)}</strong></div><div class="pace-track"><div class="pace-fill ${kind}" style="width:${100*widths[i]/max}%"></div></div></div>`).join('')}</div><div class="pace-deltas"><div><span>Vs mes pasado · ${safe(priorMonthDate)}</span><strong>${priorMonthRows.length?safe(delta(current,priorMonthTotal)):'—'}</strong></div><div><span>Ventas vs AA ${openMonth?'· mismo día':'· cierre'}</span><strong>${safe(delta(current,openMonth?comparison.priorAtCut:comparison.priorFinal))}</strong>${altHtml}</div></div><p class="note">${openMonth?`El mes actual se compara con el mismo día del año anterior; la meta muestra cómo terminó aquel mes. La cifra de ${comparison.previous} ${comparison.day===0?"antes de empezar el mes":"al día "+comparison.day} se reconstruye con fecha de reserva y estado final.`:'Ambos meses están cerrados y se comparan por su cierre completo.'} Vs mes pasado compara la producción de cada mes por fecha de estancia, no las reservas nuevas captadas; requiere una carga del mes anterior.${safe(portfolioNote)}</p>`;
   const previousMonthCard=[...document.querySelectorAll('[data-metric="gross"]')].find(x=>x.querySelector('span')?.textContent==='Ventas vs. mismo mes anterior');
   if(previousMonthCard&&comparison.priorFinal>0){
     previousMonthCard.querySelector('strong').textContent=pct((current-comparison.priorFinal)/comparison.priorFinal);
