@@ -133,11 +133,11 @@ function renderPace(){
   const priorBuildings=new Set(historical.rows.filter(x=>x.month===comparison.previous).map(x=>x.building));
   const portfolioNote=(!selectedBuilding()&&[...currentBuildings].some(x=>!priorBuildings.has(x)))?' Aviso: la cartera actual contiene edificios que no figuran en el histórico anterior; el porcentaje agregado no es comparable a perímetro constante.':'';
   const lines=openMonth?[
-    [mn(comparison.current)+' · reservado a '+dm,money(current),'current'],
-    [mn(comparison.previous)+' · '+(comparison.day===0?'reservado antes de empezar el mes':'reservado a la misma fecha ('+dm+')'),money(comparison.priorAtCut),'prior']
+    [mn(comparison.current)+': reservado a '+dm,money(current),'current'],
+    [mn(comparison.previous)+': reservado a '+dm,money(comparison.priorAtCut),'prior']
   ]:[
-    [mn(comparison.current)+' · mes cerrado',money(current),'current'],
-    [mn(comparison.previous)+' · mes cerrado',money(comparison.priorFinal),'final']
+    [mn(comparison.current)+': mes cerrado',money(current),'current'],
+    [mn(comparison.previous)+': mes cerrado',money(comparison.priorFinal),'final']
   ];
   const widths=openMonth?[current,comparison.priorAtCut]:[current,comparison.priorFinal];
   const priorMonthDate=new Date(Date.UTC(Number(comparison.current.slice(0,4)),Number(comparison.current.slice(5,7))-2,1)).toISOString().slice(0,7);
