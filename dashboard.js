@@ -2,7 +2,7 @@
 let payload=null;const $=id=>document.getElementById(id);const euro=n=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);const fmt=n=>new Intl.NumberFormat('es-ES',{maximumFractionDigits:1}).format(n);const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 window.SELECTED_BUILDINGS=new Set();
 /* Uso de Ignacio, no de Pablo: abrir con ?avanzado=1 en la URL para ver cargas anteriores e importar histórico. */
-if(new URLSearchParams(location.search).has('avanzado'))document.getElementById('avanzadoWrap')?.classList.remove('hidden');
+if(new URLSearchParams(location.search).has('avanzado')){document.getElementById('avanzadoWrap')?.classList.remove('hidden');document.getElementById('readerWrap')?.classList.remove('hidden')}
 /* Elegir qué bloques entran al imprimir/PDF (p. ej. un informe de un edificio solo con ventas,
    sin mercado). El filtro de Edificio arriba ya recorta los datos; esto recorta qué secciones. */
 function applyPrintBlockSelection(){

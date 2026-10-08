@@ -89,5 +89,51 @@ const suggestions=knownCompetitorNames(db,list).filter(s=>!list.some(c=>c.name==
 function renderMarket(){const db=read(),building=selectedBuilding(),competitorRates=db.rates.filter(x=>!/^Bonavista/i.test(x.property)),filtered=competitorRates.filter(x=>!building||matchBuilding(x.building,building)),latest=[...filtered].sort((a,b)=>b.capturedAt.localeCompare(a.capturedAt)).slice(0,12);$m('marketTable').innerHTML=latest.length?'<div class="market-scroll"><table class="detail-table"><thead><tr><th>Alojamiento</th><th>Plataforma</th><th>Fecha estancia</th><th>Noches / personas</th><th>Precio total</th><th>Capturado</th><th>Fuente</th></tr></thead><tbody>'+latest.map(x=>`<tr><td>${escape(x.property)}<small> · ${escape(x.building)}</small></td><td>${escape(x.platform||'—')}</td><td>${escape(x.checkin.slice(0,10))}</td><td>${x.nights} / ${x.guests}</td><td>${new Intl.NumberFormat('es-ES',{style:'currency',currency:x.currency}).format(x.total)}</td><td>${escape(x.capturedAt.slice(0,10))}</td><td><a href="${escape(x.source)}" target="_blank" rel="noopener noreferrer">Abrir</a></td></tr>`).join('')+'</tbody></table></div>':'<p class="note">No hay precios de competidores guardados para este edificio. Se añaden más abajo.</p>';$m('marketCount').textContent=competitorRates.length+' precios de competidores guardados';}
 async function refresh(){const button=$m('marketRefresh'),endpoint=window.BONAVISTA_MARKET_ENDPOINT;if(!endpoint){$m('marketStatus').textContent='La actualización automática se activará cuando esté conectado el servicio de mercado.';return}button.disabled=true;$m('marketStatus').textContent='Consultando mercado…';try{const response=await fetch(endpoint,{method:'POST',headers:{'Accept':'application/json'},credentials:'same-origin',cache:'no-store'});if(!response.ok)throw Error('El servicio de mercado devolvió HTTP '+response.status);const content=await response.json(),result=ingest(content);const errors=content.errors||[];const errorList=errors.length?' <ul class="market-error-list">'+errors.map(x=>`<li>${escape(x.platform)} / ${escape(x.building)} (${escape(x.error)})${x.url?` — <a href="${escape(x.url)}" target="_blank" rel="noopener noreferrer">ver ficha</a>`:''}</li>`).join('')+'</ul>':'';$m('marketStatus').innerHTML=`Actualizado: ${result.addedReviews} cambios de nota y ${result.addedRates} precios nuevos. ${errors.length} fichas no disponibles.${errorList}Los valores repetidos no se guardan.`}catch(error){$m('marketStatus').textContent=error instanceof TypeError?'El servicio de mercado no responde. Inténtalo más tarde.':error.message}finally{button.disabled=false}}
 $m('marketRefresh').addEventListener('click',refresh);$m('marketFile').addEventListener('change',async event=>{const file=event.target.files[0];if(!file)return;try{const result=ingest(JSON.parse(await file.text()));$m('marketStatus').textContent=`Importación: ${result.addedReviews} cambios de nota y ${result.addedRates} precios nuevos.`}catch(error){$m('marketStatus').textContent=error.message}event.target.value=''});$m('building').addEventListener('change',()=>{renderMarket();renderPriceCompetitors()});renderMarket();renderPriceCompetitors();if(!window.BONAVISTA_MARKET_ENDPOINT){$m('marketRefresh').disabled=true;$m('marketRefresh').title='Servicio de mercado pendiente de activación'}window.BONAVISTA_MARKET={ingest,read};
+/* Reputación propia: registro manual. Cada fila enlaza a la ficha pública de Bonavista en esa plataforma;
+   Pablo lee la nota, la teclea y se guarda con fecha solo si cambia (misma regla que la lectura automática). */
+const REP_BUILDINGS=['Bonavista Passeig de Gracia','Bonavista Virreina','Bonavista Eixample','Bonavista Pedrera','Bonavista Tamarit'];
+const REP_PLATFORMS=[['Booking',10],['Expedia',10],['Airbnb',5],['Google',5]];
+const REP_LINKS={
+ Booking:{'Bonavista Virreina':'https://www.booking.com/hotel/es/bonavista-apartments-barcelona-virreina.html','Bonavista Passeig de Gracia':'https://www.booking.com/hotel/es/bonavista-apartments-barcelona.html','Bonavista Pedrera':'https://www.booking.com/hotel/es/bonavista-apartments-pedrera-barcelona.html','Bonavista Eixample':'https://www.booking.com/hotel/es/bonavista-apartments-barcelona-eixample.html'},
+ Expedia:{'Bonavista Virreina':'https://www.expedia.es/Barcelona-Hoteles-Bonavista-Apartments-Virreina.h10245743.Informacion-Hotel','Bonavista Pedrera':'https://www.expedia.es/Barcelona-Hoteles-Bonavista-Apartments-Pedrera.h16448601.Informacion-Hotel','Bonavista Passeig de Gracia':'https://www.expedia.es/Barcelona-Hoteles-Bonavista-Apartments-Passeig-De-Gracia.h10245491.Informacion-Hotel','Bonavista Eixample':'https://www.expedia.es/Barcelona-Hoteles-Bonavista-Apartments-Eixample.h10245905.Informacion-Hotel'},
+ Airbnb:{'Bonavista Virreina':'https://www.airbnb.com/rooms/43235590','Bonavista Passeig de Gracia':'https://www.airbnb.com/rooms/1329067','Bonavista Eixample':'https://www.airbnb.com/rooms/43236801'},
+ Google:Object.fromEntries(REP_BUILDINGS.map(b=>[b,'https://www.google.com/maps/search/'+encodeURIComponent(b.replace('Bonavista','Bonavista Apartments')+' Barcelona').replace(/%20/g,'+')]))
+};
+const REP_FALLBACK={Booking:'https://www.booking.com/',Expedia:'https://www.expedia.es/',Airbnb:'https://www.airbnb.com/',Google:'https://www.google.com/maps'};
+function repLast(db,platform,building){const s=db.reviews.filter(x=>x.platform===platform&&x.building===building).sort((a,b)=>a.capturedAt.localeCompare(b.capturedAt));return s.at(-1)||null}
+let repMsg='';
+function renderManualReputation(){
+ const holder=$m('repManual');if(!holder)return;
+ const db=read();
+ const rows=REP_BUILDINGS.flatMap(b=>REP_PLATFORMS.map(([p,max])=>{
+  const last=repLast(db,p,b),link=REP_LINKS[p]?.[b];
+  const lastText=last?(String(last.score).replace('.',',')+(last.reviewCount?' · '+last.reviewCount+' op.':'')+' · '+new Date(last.capturedAt).toLocaleDateString('es-ES')):'—';
+  return `<tr><td>${escape(b.replace('Bonavista ',''))}</td><td>${p}</td><td>${link?`<a href="${link}" target="_blank" rel="noopener">Abrir ficha</a>`:'—'}</td><td>${escape(lastText)}</td><td><input class="rep-score" inputmode="decimal" placeholder="0–${max}" aria-label="Nota ${p} ${escape(b)}" data-platform="${p}" data-building="${escape(b)}" data-max="${max}"></td><td><input class="rep-count" inputmode="numeric" placeholder="opiniones" aria-label="Número de opiniones ${p} ${escape(b)}"></td></tr>`;
+ })).join('');
+ holder.innerHTML=`<div class="market-scroll"><table class="detail-table rep-manual-table"><thead><tr><th>Edificio</th><th>Plataforma</th><th>Ficha</th><th>Última registrada</th><th>Nota nueva</th><th>Nº opiniones</th></tr></thead><tbody>${rows}</tbody></table></div><div class="history-row"><button class="ghost" id="repSave" type="button">Guardar valoraciones</button><span class="note" id="repSaveStatus" role="status"></span></div><p class="note">Booking y Expedia puntúan sobre 10; Airbnb y Google sobre 5. Rellena solo las filas que quieras actualizar. Si la nota y el número de opiniones no han cambiado respecto a la última registrada, no se guarda nada nuevo.</p>`;
+ $m('repSaveStatus').textContent=repMsg;repMsg='';
+ $m('repSave').onclick=()=>{
+  const status=$m('repSaveStatus'),now=new Date().toISOString(),reviews=[];
+  try{
+   for(const input of holder.querySelectorAll('.rep-score')){
+    const raw=input.value.trim();if(!raw)continue;
+    const score=Number(raw.replace(',','.')),max=Number(input.dataset.max);
+    if(!Number.isFinite(score)||score<0||score>max)throw Error('La nota de '+input.dataset.platform+' · '+input.dataset.building.replace('Bonavista ','')+' debe estar entre 0 y '+max);
+    const countRaw=input.closest('tr').querySelector('.rep-count').value.trim();
+    const count=countRaw===''?undefined:Number(countRaw);
+    if(count!==undefined&&(!Number.isInteger(count)||count<0))throw Error('El número de opiniones de '+input.dataset.platform+' · '+input.dataset.building.replace('Bonavista ','')+' no es válido');
+    const prev=repLast(read(),input.dataset.platform,input.dataset.building);
+    const r={platform:input.dataset.platform,building:input.dataset.building,score,capturedAt:now,source:prev?.source||REP_LINKS[input.dataset.platform]?.[input.dataset.building]||REP_FALLBACK[input.dataset.platform],categories:{}};
+    if(count!==undefined)r.reviewCount=count;
+    reviews.push(r);
+   }
+   if(!reviews.length){status.textContent='No hay ninguna nota rellenada.';return}
+   const res=ingest({format:'bonavista-market-v1',reviews,rates:[]});
+   repMsg=res.addedReviews?('✓ Guardadas '+res.addedReviews+' valoración(es) nuevas.'+(res.addedReviews<reviews.length?' El resto no había cambiado.':'')):'Sin cambios: las notas coinciden con las últimas registradas.';renderManualReputation();
+  }catch(e){status.textContent=e.message}
+ };
+}
+const renderMarketBase=renderMarket;renderMarket=function(){renderMarketBase.apply(this,arguments);renderManualReputation()};
+renderManualReputation();
 if(typeof render==='function'){const previousRender=render;render=function(){previousRender();renderPriceCompetitors()}}
 })();

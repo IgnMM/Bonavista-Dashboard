@@ -26,7 +26,9 @@
   ]};
   function trySeed(){
     if(!window.BONAVISTA_MARKET){setTimeout(trySeed,50);return}
-    window.BONAVISTA_MARKET.ingest(SEED);
+    /* Punto de partida: solo para series sin ninguna nota registrada; si ya hay una (leída o tecleada), no se vuelve a añadir. */
+    let seen=new Set();try{seen=new Set((JSON.parse(localStorage.getItem('bonavista-market-v1')||'{}').reviews||[]).map(x=>x.platform+'|'+x.building))}catch(e){}
+    window.BONAVISTA_MARKET.ingest({...SEED,reviews:SEED.reviews.filter(r=>!seen.has(r.platform+'|'+r.building))});
   }
   trySeed();
 })();
