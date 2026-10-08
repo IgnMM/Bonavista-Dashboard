@@ -140,6 +140,8 @@ function liveRangeStats(start,end,building){
  for(const x of latest()){
   if(building&&!matchBuilding(x.building,building))continue;
   if(!x.arrival||!x.departure)continue;
+  /* La limpieza se imputa entera el día de salida, no repartida por noches. */
+  if(model.cleaning&&x.departure>=start&&x.departure<=end)rentalNet+=x.cleaning||0;
   const lastNight=addDaysStr(x.departure,-1);
   const overlapStart=x.arrival>start?x.arrival:start,overlapEnd=lastNight<end?lastNight:end;
   if(overlapStart>overlapEnd)continue;
@@ -147,7 +149,7 @@ function liveRangeStats(start,end,building){
   const totalNights=x.nights||daysBetweenDates(x.arrival,x.departure);
   if(totalNights<=0)continue;
   gross+=(x.gross||0)*overlapNights/totalNights;
-  rentalNet+=((x.rental||0)-(x.discount||0)+(model.cleaning?(x.cleaning||0):0))*overlapNights/totalNights;
+  rentalNet+=((x.rental||0)-(x.discount||0))*overlapNights/totalNights;
   nights+=overlapNights;
  }
  return {gross,rentalNet,nights};

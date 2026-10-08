@@ -41,7 +41,7 @@ function metrics(monthOverride,buildingOverride){
   const all=latest().filter(x=>!building||matchBuilding(x.building,building));
   const months=month?[month]:(window.periodMonths?.()?.months||[...new Set(all.map(x=>x.month))].sort());
   const occupied=all.reduce((sum,x)=>sum+months.reduce((a,m)=>a+stayOverlap(x,m),0),0);
-  const overnight=all.reduce((sum,x)=>sum+(x.nights?Math.max(0,x.rental-x.discount+(model.cleaning?(x.cleaning||0):0))*(months.reduce((a,m)=>a+stayOverlap(x,m),0)/x.nights):0),0);
+  const overnight=all.reduce((sum,x)=>{const ov=months.reduce((a,m)=>a+stayOverlap(x,m),0);const rent=x.nights?Math.max(0,x.rental-x.discount)*(ov/x.nights):0;/* limpieza: entera el día de salida */const cl=(model.cleaning&&x.departure&&months.includes(x.departure.slice(0,7)))?(x.cleaning||0):0;return sum+rent+cl},0);
   const present=building?[...building]:[...new Set(all.map(x=>x.building))];
   const available=months.reduce((sum,m)=>{const [year,mo]=m.split('-').map(Number);const days=new Date(year,mo,0).getDate();return sum+present.reduce((a,b)=>a+Math.max(0,(Number(model.units[b])||0)*days-(Number(model.blocks[b])||0)),0)},0);
   const revenue=overnight/(1+Number(model.vat||0)/100);
