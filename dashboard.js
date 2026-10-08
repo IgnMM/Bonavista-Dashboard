@@ -103,6 +103,7 @@ async function updateFolderPrompt(){
   const box=$('folderPrompt');box.dataset.mode=mode||'';box.classList.toggle('hidden',!mode);
   if(mode){$('folderPromptText').textContent=texts[mode][0];$('folderPromptBtn').textContent=texts[mode][1]}
   $('connectFolder').classList.toggle('hidden',!!s.connected||!!s.needsPermission);
+  $('backup').classList.toggle('hidden',!!s.connected);$('lastBackup').classList.toggle('hidden',!!s.connected);
   $('reconnectFolder').classList.toggle('hidden',!s.needsPermission);
   $('recoverNote').classList.toggle('hidden',!(s.connected&&versions));
   if(s.connected)renderFolderStatus('✓ Guardado automático activo'+(s.handle.name?' en la carpeta «'+s.handle.name+'»':'')+'.');
