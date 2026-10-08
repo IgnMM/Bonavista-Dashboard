@@ -41,21 +41,31 @@ function renderSnapshotBanner(){
  $('exitSnapshot').onclick=()=>exitSnapshotView();
 }
 
-$('load').onclick=async()=>{const a=$('bookings').files[0],b=$('services').files[0];if(!a||!b){$('status').textContent='Selecciona los dos archivos de la misma exportación.';return} window.VIEWING_SNAPSHOT=null;$('status').textContent='Validando los archivos…';const wasVisible=!$('dashboard').classList.contains('hidden');$('dashboard').classList.add('hidden');try{const data=await analyseFiles(a,b);payload=data;let saved=true;let isNew=true;try{isNew=await saveSnapshot(data,a.name,b.name)}catch(err){saved=false}setupFilters(data);$('dashboard').classList.remove('hidden');await saveVersionToFolderIfConnected();$('status').textContent=(saved?(isNew?'Nueva captura guardada: ':'Captura idéntica a otra ya guardada; sin duplicar: '):'Importación mostrada sin guardar; el navegador bloqueó el almacenamiento local: ')+data.meta.reservations+' reservas y '+data.meta.service_lines+' líneas de servicios.';render()}catch(e){if(wasVisible)$('dashboard').classList.remove('hidden');const zipError=/central directory|zip file|Falta la columna|XML no válido|libro XLSX/i.test(e.message);$('status').textContent=zipError?'No se ha podido leer el Excel de reservas ('+e.message.slice(0,90)+'). Comprueba que has elegido el Excel de reservas BOOKIPRO (.xlsx) y el CSV de desglose de servicios, no al revés. No se ha cambiado nada.':'Error: '+e.message+(wasVisible?' No se ha cambiado nada: sigues viendo los datos anteriores.':'')}};
+$('load').onclick=async()=>{const a=$('bookings').files[0],b=$('services').files[0];if(!a||!b){$('status').textContent='Selecciona los dos archivos de la misma exportación.';return} window.VIEWING_SNAPSHOT=null;$('status').textContent='Validando los archivos…';const wasVisible=!$('dashboard').classList.contains('hidden');$('dashboard').classList.add('hidden');try{const data=await analyseFiles(a,b);payload=data;let saved=true;let isNew=true;try{isNew=await saveSnapshot(data,a.name,b.name)}catch(err){saved=false}setupFilters(data);$('dashboard').classList.remove('hidden');await saveVersionToFolderIfConnected();if(window.updateFolderPrompt)updateFolderPrompt();$('status').textContent=(saved?(isNew?'Nueva captura guardada: ':'Captura idéntica a otra ya guardada; sin duplicar: '):'Importación mostrada sin guardar; el navegador bloqueó el almacenamiento local: ')+data.meta.reservations+' reservas y '+data.meta.service_lines+' líneas de servicios.';render()}catch(e){if(wasVisible)$('dashboard').classList.remove('hidden');const zipError=/central directory|zip file|Falta la columna|XML no válido|libro XLSX/i.test(e.message);$('status').textContent=zipError?'No se ha podido leer el Excel de reservas ('+e.message.slice(0,90)+'). Comprueba que has elegido el Excel de reservas BOOKIPRO (.xlsx) y el CSV de desglose de servicios, no al revés. No se ha cambiado nada.':'Error: '+e.message+(wasVisible?' No se ha cambiado nada: sigues viendo los datos anteriores.':'')}};
 $('building').onchange=()=>render();$('month').onchange=()=>render();
 $('openSnapshot').onclick=async()=>{const id=$('snapshots').value;if(!id)return;const record=(await listSnapshots()).find(x=>x.id===id);if(!record)return;payload=record.data;window.PORTFOLIO_BOOKINGS=record.data.bookings;window.PORTFOLIO_CANCELLED=record.data.meta.cancelled||[];window.PORTFOLIO_CANCELLED_KNOWN=new Set(Array.isArray(record.data.meta.cancelled)?[...new Set(record.data.bookings.map(x=>x.month)),...record.data.meta.cancelled.map(r=>r.month)]:[]);window.PORTFOLIO_ASOF=Object.fromEntries([...new Set(record.data.bookings.map(x=>x.month))].map(month=>[month,record.data.meta.as_of||id.slice(0,10)]));window.VIEWING_SNAPSHOT=id;setupFilters(payload);$('dashboard').classList.remove('hidden');$('status').textContent='Carga del '+new Date(id).toLocaleString('es-ES')+' · '+record.bookName;render()};
 $('backup').onclick=()=>exportSnapshots().catch(e=>$('status').textContent=e.message);
 $('chooseRestoreFile').onclick=()=>$('restoreBackup').click();
-$('restoreBackup').addEventListener('change',event=>{const file=event.target.files[0];$('restoreFileName').textContent=file?file.name:'Ningún archivo elegido';$('doRestore').disabled=!file;$('restoreStatus').classList.remove('error');$('restoreStatus').textContent=''});
-$('doRestore').onclick=async()=>{
-  const file=$('restoreBackup').files[0];if(!file)return;
-  let preview;try{preview=JSON.parse(await file.text())}catch(e){$('restoreStatus').textContent='El archivo no es un JSON válido';$('restoreStatus').classList.add('error');return}
+$('restoreBackup').addEventListener('change',event=>{const file=event.target.files[0];if(file)runRestore(file)});
+async function runRestore(file){
+  const st=$('restoreStatus');st.classList.remove('error');st.textContent='';
+  const done=()=>{$('restoreBackup').value=''};
+  let preview;try{preview=JSON.parse(await file.text())}catch(e){st.textContent='El archivo no es un JSON válido';st.classList.add('error');done();return}
   const whenText=preview.exportedAt?new Date(preview.exportedAt).toLocaleString('es-ES'):'fecha desconocida';
-  if(!confirm('¿Restaurar la copia de dashboard del '+whenText+'? Antes se guardará automáticamente una copia del estado actual, por si hace falta deshacerlo.'))return;
-  $('doRestore').disabled=true;$('restoreStatus').classList.remove('error');$('restoreStatus').textContent='Guardando copia de dashboard del estado actual…';
-  try{await exportSnapshots()}catch(e){if(!/Todavía no hay datos/.test(e.message))throw e}
-  $('restoreStatus').textContent='Leyendo el archivo…';
-  try{const result=await restoreSnapshots(file);const historicoNote=(result.historicoAdded||result.historicoUpdated)?` Histórico: ${result.historicoAdded} filas nuevas, ${result.historicoUpdated} actualizadas.`:'';const msg=`Copia del ${whenText} incorporada: ${result.added} cargas y ${result.marketAdded} observaciones de mercado nuevas.${historicoNote} Los datos previos se conservan.`;$('status').textContent=msg;$('restoreStatus').textContent='✓ '+msg;$('restoreBackup').value='';$('restoreFileName').textContent='Ningún archivo elegido';await saveVersionToFolderIfConnected();if(payload){setupFilters(payload);render()}else{location.reload()}}catch(e){const msg='No se pudo recuperar la copia: '+e.message;$('status').textContent=msg;$('restoreStatus').textContent=msg;$('restoreStatus').classList.add('error');$('doRestore').disabled=false}};
+  const safety=window.BONAVISTA_FOLDER?'Antes se guardará una copia del estado actual en tu carpeta, por si hace falta deshacerlo.':'Antes se descargará una copia del estado actual, por si hace falta deshacerlo.';
+  if(!confirm('¿Abrir la copia de dashboard del '+whenText+'? Se añade a los datos actuales sin borrarlos. '+safety)){done();return}
+  st.textContent='Guardando copia del estado actual…';
+  try{
+    if(window.BONAVISTA_FOLDER)await saveVersionToFolderIfConnected();else{try{await exportSnapshots()}catch(e){if(!/Todavía no hay datos/.test(e.message))throw e}}
+    st.textContent='Leyendo el archivo…';
+    const result=await restoreSnapshots(file);const historicoNote=(result.historicoAdded||result.historicoUpdated)?` Histórico: ${result.historicoAdded} filas nuevas, ${result.historicoUpdated} actualizadas.`:'';
+    const msg=`Copia del ${whenText} incorporada: ${result.added} cargas y ${result.marketAdded} observaciones de mercado nuevas.${historicoNote} Los datos previos se conservan.`;
+    $('status').textContent=msg;st.textContent='✓ '+msg;done();
+    await saveVersionToFolderIfConnected();
+    if(window.updateFolderPrompt)await updateFolderPrompt();
+    if(payload){setupFilters(payload);render()}else{location.reload()}
+  }catch(e){const msg='No se pudo abrir la copia: '+e.message;$('status').textContent=msg;st.textContent=msg;st.classList.add('error');done()}
+}
 function renderFolderStatus(text,isError){const el=$('folderStatus');if(!el)return;el.textContent=text||'';el.classList.toggle('error',!!isError)}
 /* Deliberadamente NO carga sola al abrir la página: hacerlo automático pisaba restauraciones
    manuales recién hechas si la carpeta tenía una versión distinta (p. ej. una copia vacía guardada
@@ -68,39 +78,47 @@ async function doLoadFromFolder(){
     if(payload){setupFilters(payload);render()}else{location.reload()}
   }catch(e){renderFolderStatus('No se pudo cargar desde la carpeta: '+e.message,true)}
 }
+async function doConnectFolder(){
+  try{await connectFolder();await saveVersionToFolderIfConnected();renderFolderStatus('✓ Carpeta conectada: a partir de ahora cada cambio se guarda aquí solo.')}
+  catch(e){if(e.name!=='AbortError')renderFolderStatus('No se pudo conectar la carpeta: '+e.message,true)}
+  await updateFolderPrompt();
+}
+async function doReconnectFolder(){
+  const {handle}=await reconnectFolder();
+  if(!handle){renderFolderStatus('Todavía no has elegido carpeta en este ordenador.',true);return}
+  let ok=false;try{ok=await requestFolderPermission(handle)}catch(e){}
+  if(!ok){renderFolderStatus('No se ha podido activar. Inténtalo de nuevo.',true);return}
+  renderFolderStatus('✓ Guardando aquí automáticamente de nuevo.');
+  await updateFolderPrompt();
+}
+/* Banner visible fuera del desplegable: pide elegir carpeta (único paso manual que exige el navegador),
+   reactivar el permiso, o recuperar los datos de la carpeta si este navegador está vacío. */
+async function updateFolderPrompt(){
+  if(!supportsFolderAccess()||!$('folderPrompt'))return;
+  const s=await reconnectFolder();let items=[];try{items=await listSnapshots()}catch(e){}
+  let mode=null,versions=0;
+  if(s.connected){try{versions=(await listSavedVersions(s.handle)).length}catch(e){}if(!items.length&&versions)mode='recover'}
+  else mode=s.needsPermission?'reconnect':'connect';
+  const texts={connect:['Tus datos solo se guardan en este navegador. Elige una carpeta y cada cambio se guardará solo como copia de seguridad.','Elegir carpeta…'],reconnect:['El guardado automático necesita que confirmes el permiso de la carpeta (el navegador lo pide de vez en cuando).','Reactivar guardado automático'],recover:['No hay datos en este navegador, pero tu carpeta tiene copias guardadas.','Recuperar mis datos']};
+  const box=$('folderPrompt');box.dataset.mode=mode||'';box.classList.toggle('hidden',!mode);
+  if(mode){$('folderPromptText').textContent=texts[mode][0];$('folderPromptBtn').textContent=texts[mode][1]}
+  $('connectFolder').classList.toggle('hidden',!!s.connected||!!s.needsPermission);
+  $('reconnectFolder').classList.toggle('hidden',!s.needsPermission);
+  $('recoverNote').classList.toggle('hidden',!(s.connected&&versions));
+  if(s.connected)renderFolderStatus('✓ Guardado automático activo'+(s.handle.name?' en la carpeta «'+s.handle.name+'»':'')+'.');
+  else if(s.needsPermission)renderFolderStatus('Carpeta elegida; falta confirmar el permiso del navegador.');
+  else renderFolderStatus('Todavía no hay carpeta elegida: los datos solo están en este navegador.');
+}
+window.updateFolderPrompt=updateFolderPrompt;
 async function initFolderUi(){
   if(!$('folderBlock'))return;
   if(!supportsFolderAccess())return; // Firefox/Safari: no mostrar esta opción.
   $('folderBlock').classList.remove('hidden');
-  $('connectFolder').onclick=async()=>{
-    try{
-      await connectFolder();
-      await saveVersionToFolderIfConnected();
-      renderFolderStatus('✓ Carpeta conectada. A partir de ahora, cada carga nueva se guarda aquí sola.');
-      $('connectFolder').classList.add('hidden');
-      $('recoverNote').classList.remove('hidden');
-    }catch(e){if(e.name!=='AbortError')renderFolderStatus('No se pudo conectar la carpeta: '+e.message,true)}
-  };
-  $('reconnectFolder').onclick=async()=>{
-    const {handle}=await reconnectFolder();
-    if(!handle){renderFolderStatus('Todavía no has activado el guardado automático en este ordenador.',true);return}
-    const ok=await requestFolderPermission(handle);
-    if(!ok){renderFolderStatus('No se ha podido activar. Inténtalo de nuevo.',true);return}
-    renderFolderStatus('✓ Guardando aquí automáticamente de nuevo.');
-    $('reconnectFolder').classList.add('hidden');$('connectFolder').classList.add('hidden');
-    $('recoverNote').classList.remove('hidden');
-  };
+  $('connectFolder').onclick=doConnectFolder;
+  $('reconnectFolder').onclick=doReconnectFolder;
   $('loadFromFolder').onclick=()=>doLoadFromFolder();
-  const status=await reconnectFolder();
-  if(status.connected){
-    $('connectFolder').classList.add('hidden');
-    $('recoverNote').classList.remove('hidden');
-    renderFolderStatus('✓ Carpeta conectada. Guardando aquí automáticamente.');
-  }else if(status.needsPermission){
-    $('connectFolder').classList.add('hidden');
-    $('reconnectFolder').classList.remove('hidden');
-    renderFolderStatus('Pulsa para seguir guardando el dashboard automáticamente, como ya hacías antes (el navegador lo pide de vez en cuando, por seguridad).');
-  }
+  $('folderPromptBtn').onclick=async()=>{const m=$('folderPrompt').dataset.mode;if(m==='connect')await doConnectFolder();else if(m==='reconnect')await doReconnectFolder();else if(m==='recover')await doLoadFromFolder()};
+  await updateFolderPrompt();
 }
 refreshSnapshots().catch(e=>$('status').textContent='No se puede acceder al almacenamiento local: '+e.message);
 renderLastBackup();

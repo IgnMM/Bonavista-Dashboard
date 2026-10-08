@@ -29,7 +29,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 @media print{.print-select{display:none!important}}
 .pulse{border:1.5px solid #E4042C;box-shadow:0 8px 22px #5B001114}
 .period-control{margin:18px 0 0}.period-tabs{display:inline-flex;border:1px solid #E5DDDF;border-radius:10px;overflow:hidden}.period-tabs button{border:0;background:white;padding:9px 16px;font-size:12px;font-weight:700;color:#595557;cursor:pointer}.period-tabs button+button{border-left:1px solid #E5DDDF}.period-tabs button.active{background:#E4042C;color:#fff}.period-control .note{margin-top:8px}
-.settings-panel{background:#F3F1F0;border-style:dashed}.settings-panel summary{color:#595557}.settings-panel[open]{padding-bottom:22px}
+.settings-panel{background:#F3F1F0;border-style:dashed}.settings-panel summary{color:#595557}.settings-panel[open]{padding-bottom:22px}.folder-prompt{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px}.folder-prompt.hidden{display:none}
 .archivo-panel{margin-top:18px;background:white}.archivo-panel summary{cursor:pointer;color:#595557;list-style:none}.archivo-panel summary::before{content:"＋ ";font-weight:700;color:#9D001C}.archivo-panel[open] summary::before{content:"− "}.archivo-panel summary small{display:block;font-weight:400;margin-top:3px}.archivo-panel .history-group:first-of-type{margin-top:16px}
 .archivo-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:14px}.archivo-col{border-left:1px solid #EEE8E9;padding-left:24px}.archivo-col:first-child{border-left:0;padding-left:0}@media(max-width:700px){.archivo-grid{grid-template-columns:1fr;gap:18px}.archivo-col{border-left:0;padding-left:0;border-top:1px solid #EEE8E9;padding-top:14px}.archivo-col:first-child{border-top:0;padding-top:0}}
 .link-btn{background:none;border:0;padding:0;color:#9D001C;font-weight:700;text-decoration:underline;cursor:pointer;font-size:inherit;font-family:inherit}.link-btn:hover{color:#B60022}
@@ -47,7 +47,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 @media(max-width:700px){.detail-overlay{padding:0}.detail-modal{border-radius:0;min-height:100%;padding:60px 16px 30px}}
 @media print{.detail-overlay{position:static;background:none;padding:0;display:none}}
 .sales-view-control{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 18px;margin-bottom:0}.sales-view-control label{font-size:12px;font-weight:700;color:#595557;display:flex;align-items:center;gap:8px}.sales-view-control select{border:1px solid #E5DDDF;border-radius:8px;padding:7px 9px}.sales-view-control .note{margin:0}
-@media print{.period-control,.building-bar select{display:inline}.settings-panel{display:none}.block-number{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media print{.period-control,.building-bar select{display:inline}.settings-panel,.folder-prompt{display:none!important}.block-number{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 @media(max-width:700px){.building-bar{padding:12px 16px}}
 .base-compare-control{display:flex;justify-content:flex-end;margin-bottom:10px}.base-compare-control label{font-size:11px;font-weight:700;color:#595557;display:flex;align-items:center;gap:8px}.base-compare-control select{border:1px solid #E5DDDF;border-radius:8px;padding:7px 9px;background:white}.card .yoy{display:block;margin-top:6px;font-size:11px;font-weight:700;color:#9D001C}@media print{.base-compare-control{display:none}}
 #simulatedBanner:empty{display:none}#simulatedBanner{background:#fff3cd;border:2px solid #cb9654;color:#5c4413;border-radius:12px;padding:13px 18px;margin:18px 0;font-size:13px;font-weight:700;line-height:1.5}#simulatedBanner b{display:block;font-size:15px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.02em}#simulatedBanner span{font-weight:400}@media print{#simulatedBanner{border-color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
@@ -97,22 +97,26 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 </div></header>
 <div id="simulatedBanner"></div>
 <div class="intro"><div><h1>Dashboard de gestión</h1><p class="sub">Una visión clara del negocio, desde cada edificio hasta cada reserva.</p></div><span class="pill">PILOTO · DATOS BOOKIPRO</span></div><div class="print-meta" id="printMeta"></div>
+<div class="alert folder-prompt hidden" id="folderPrompt"><span id="folderPromptText"></span> <button class="ghost" id="folderPromptBtn" type="button"></button></div>
 <details class="panel section-toggle settings-panel" id="settings"><summary>Subir nuevos datos</summary>
 <div class="panel upload"><label>Reservas BOOKIPRO (.xlsx)<input type="file" id="bookings" accept=".xlsx"></label><label>Desglose de servicios (.csv)<input type="file" id="services" accept=".csv"></label><button id="load">Actualizar dashboard</button></div><div id="status" class="status"></div>
 <p class="note" id="dashboardStatusLine"></p>
-<details class="panel archivo-panel"><summary><b>Archivo</b></summary>
+<details class="panel archivo-panel" open><summary><b>Tus datos y copias de seguridad</b></summary>
 <div class="archivo-grid">
-<div class="archivo-col">
-<div class="history-row"><button class="ghost" id="backup">Guardar copia de dashboard</button></div><p class="note" id="lastBackup"></p>
-<div class="history-row"><button class="ghost" id="chooseRestoreFile" type="button">Restaurar copia de dashboard…</button><span class="note" id="restoreFileName">Ningún archivo elegido</span><button class="ghost" id="doRestore" type="button" disabled>Restaurar</button></div>
-<input type="file" id="restoreBackup" accept=".bonavista,.json" class="visually-hidden" tabindex="-1" aria-hidden="true">
-<p class="note status" id="restoreStatus"></p>
-</div>
 <div class="archivo-col hidden" id="folderBlock">
-<div class="history-row"><button class="ghost" id="connectFolder" type="button">Conectar carpeta de Bonavista…</button><button class="ghost hidden" id="reconnectFolder" type="button">Reactivar guardado automático</button></div>
+<b>Guardado automático en una carpeta (recomendado)</b>
 <p class="note status" id="folderStatus"></p>
-<p class="note recover-note hidden" id="recoverNote">¿Estás en otro dispositivo o se han borrado los datos del navegador?<br><button type="button" class="link-btn" id="loadFromFolder">Recuperar tu dashboard</button></p>
-<p class="note">Todo se guarda solo, en una carpeta de tu ordenador que tú eliges (dentro se crean «Dashboards guardados» y «Exportaciones BOOKIPRO», para lo que descargues de BOOKIPRO antes de subirlo aquí). Puedes borrar copias antiguas de «Dashboards guardados» directamente desde el explorador de archivos, cuando quieras.</p>
+<div class="history-row"><button class="ghost" id="connectFolder" type="button">Elegir carpeta…</button><button class="ghost hidden" id="reconnectFolder" type="button">Reactivar guardado automático</button></div>
+<p class="note recover-note hidden" id="recoverNote">¿Se han borrado los datos de este navegador o estás en otro ordenador? <button type="button" class="link-btn" id="loadFromFolder">Recuperar mis datos de la carpeta</button></p>
+<p class="note">Cada vez que cambian los datos se guarda sola una copia nueva, con fecha y hora, en «Dashboards guardados» (dentro de la carpeta que elijas). Puedes borrar las antiguas desde el explorador de archivos cuando quieras. En «Exportaciones BOOKIPRO» puedes dejar los archivos que descargas de BOOKIPRO.</p>
+</div>
+<div class="archivo-col">
+<b>Copia manual · para llevar tus datos a otro equipo o al móvil</b>
+<div class="history-row"><button class="ghost" id="backup">Guardar copia ahora</button><button class="ghost" id="chooseRestoreFile" type="button">Abrir copia…</button></div>
+<input type="file" id="restoreBackup" accept=".bonavista,.json" class="visually-hidden" tabindex="-1" aria-hidden="true">
+<p class="note" id="lastBackup"></p>
+<p class="note status" id="restoreStatus"></p>
+<p class="note">«Guardar copia ahora» descarga un archivo .bonavista. «Abrir copia…» sirve en cualquier navegador o dispositivo: elige un archivo .bonavista y los datos se incorporan sin borrar los que ya hay.</p>
 </div>
 </div>
 <div id="avanzadoWrap" class="hidden">
@@ -169,7 +173,7 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 </div><p class="footer">BONAVISTA · Los archivos BOOKIPRO se procesan en este navegador; el servicio de mercado se consultará al pulsar el botón cuando esté activo.</p>
 <div id="detailOverlay" class="detail-overlay hidden"><div class="detail-modal"><button id="detailClose" class="ghost" type="button">Cerrar ✕</button><div class="panel detail" id="detail"></div></div></div>
 </div>
-<script src="vendor/jszip.min.js"></script><script src="parser.js?v=202610051500"></script><script src="storage.js?v=202610051500"></script><script src="folder.js?v=202610051500"></script><script src="portfolio.js?v=202610051500"></script><script src="dashboard.js?v=202610051500"></script><script src="enhancements.js?v=202610051500"></script><script src="details.js?v=202610051500"></script><script src="baseline.js?v=202610051500"></script>
+<script src="vendor/jszip.min.js"></script><script src="parser.js?v=202610081215"></script><script src="storage.js?v=202610081215"></script><script src="folder.js?v=202610081215"></script><script src="portfolio.js?v=202610081215"></script><script src="dashboard.js?v=202610081215"></script><script src="enhancements.js?v=202610081215"></script><script src="details.js?v=202610081215"></script><script src="baseline.js?v=202610081215"></script>
 <script>
 // Piloto (2026-09-30): lector local que Ignacio ejecuta en su portátil durante la demo con Pablo.
 // Solo funciona si ese servicio está corriendo en 127.0.0.1:8765; si no, el botón falla con un
@@ -177,4 +181,4 @@ body{background:linear-gradient(180deg,#F4F1F1 0,#FAF9F8 270px)}
 // esto se mantiene activo o se retira tras la demo.
 window.BONAVISTA_MARKET_ENDPOINT='http://127.0.0.1:8765/api/market-refresh';
 </script>
-<script src="market.js?v=202610051500"></script><script src="reviews-seed.js?v=202610051500"></script><script src="comparative.js?v=202610051500"></script></body></html>
+<script src="market.js?v=202610081215"></script><script src="reviews-seed.js?v=202610081215"></script><script src="comparative.js?v=202610081215"></script></body></html>
