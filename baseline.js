@@ -52,6 +52,14 @@ function initBaseline(){}
 /* Merges by mes+edificio: filas nuevas se añaden, filas repetidas se actualizan con la versión
    entrante (más reciente/reconstruida), y cualquier fila existente que no venga en el archivo
    nuevo se conserva tal cual. Importar un archivo parcial o antiguo nunca borra histórico previo. */
+/* Año anterior "al mismo día": fecha de corte = fecha de los datos actuales menos un año. */
+function priorYearCutDate(month){const iso=window.PORTFOLIO_ASOF?.[month]||(typeof payload!=='undefined'&&payload?.meta?.as_of)||'';if(!iso)return null;let md=iso.slice(5,10);if(md==='02-29')md='02-28';return (Number(iso.slice(0,4))-1)+'-'+md}
+let HIST_RES_SRC=null,HIST_RES_IDX=null;
+function historicalReservationsFor(month,building){
+  if(!historical?.reservations?.length)return null;
+  if(HIST_RES_SRC!==historical){HIST_RES_SRC=historical;HIST_RES_IDX=new Map();for(const r of historical.reservations){const k=r.m+'|'+r.b;let a=HIST_RES_IDX.get(k);if(!a){a=[];HIST_RES_IDX.set(k,a)}a.push(r)}}
+  return HIST_RES_IDX.get(month+'|'+building)||[];
+}
 function mergeHistorico(existing,incoming){
   const byKey=new Map();
   for(const row of (existing?.rows||[]))byKey.set(row.month+'|'+row.building,row);
@@ -63,13 +71,17 @@ function mergeHistorico(existing,incoming){
   for(const row of (existing?.dailyRows||[]))dailyByKey.set(row.date+'|'+row.building,row);
   for(const row of (incoming.dailyRows||[]))dailyByKey.set(row.date+'|'+row.building,row);
   const dailyRows=[...dailyByKey.values()].sort((a,b)=>a.date===b.date?a.building.localeCompare(b.building):a.date.localeCompare(b.date));
+  // reservations (año anterior recortable por fecha de reserva): se reemplazan por mes+edificio.
+  const incomingKeys=new Set((incoming.reservations||[]).map(r=>r.m+'|'+r.b));
+  const reservations=[...(existing?.reservations||[]).filter(r=>!incomingKeys.has(r.m+'|'+r.b)),...(incoming.reservations||[])];
   const merged={
     format:'bonavista-baseline-v1',
     method:incoming.method||existing?.method,
     generatedAt:incoming.generatedAt||existing?.generatedAt,
     sources:[...(existing?.sources||[]),...(incoming.sources||[])],
     rows,
-    dailyRows
+    dailyRows,
+    reservations
   };
   return {merged,added,updated,kept:rows.length-added-updated};
 }
@@ -111,7 +123,7 @@ function previousYearComparison(buildingOverride){
   if(!rows.length)return null;
   const asOf=window.PORTFOLIO_ASOF?.[current]||payload.meta.as_of||new Date().toISOString().slice(0,10);
   const asMonth=asOf.slice(0,7),day=current>asMonth?0:current<asMonth?31:Math.max(1,Math.min(31,Number(asOf.slice(8,10))||1));
-  return {current,previous,day,priorAtCut:rows.reduce((s,x)=>s+(day===0?Number(x.analysisBeforeMonth?.gross)||0:Number(x.bookedByDay?.[day-1])||0),0),priorFinal:rows.reduce((s,x)=>s+(Number(x.final)||0),0),priorCancelled:rows.reduce((s,x)=>s+(Number(x.cancelledNights)||0),0),source:historical.method};
+  return {current,previous,day,priorAtCut:rows.reduce((s,x)=>{const cut=priorYearCutDate(current),rs=x.hasRes&&cut?historicalReservationsFor(x.month,x.building):null;if(rs)return s+rs.reduce((t,r)=>t+(r.d<=cut?r.g:0),0);return s+(day===0?Number(x.analysisBeforeMonth?.gross)||0:Number(x.bookedByDay?.[day-1])||0)},0),priorFinal:rows.reduce((s,x)=>s+(Number(x.final)||0),0),priorCancelled:rows.reduce((s,x)=>s+(Number(x.cancelledNights)||0),0),source:historical.method};
 }
 function renderPace(){
   if(!payload)return;
