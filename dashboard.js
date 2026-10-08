@@ -45,7 +45,18 @@ $('load').onclick=async()=>{const a=$('bookings').files[0],b=$('services').files
 $('building').onchange=()=>render();$('month').onchange=()=>render();
 $('openSnapshot').onclick=async()=>{const id=$('snapshots').value;if(!id)return;const record=(await listSnapshots()).find(x=>x.id===id);if(!record)return;payload=record.data;window.PORTFOLIO_BOOKINGS=record.data.bookings;window.PORTFOLIO_CANCELLED=record.data.meta.cancelled||[];window.PORTFOLIO_CANCELLED_KNOWN=new Set(Array.isArray(record.data.meta.cancelled)?[...new Set(record.data.bookings.map(x=>x.month)),...record.data.meta.cancelled.map(r=>r.month)]:[]);window.PORTFOLIO_ASOF=Object.fromEntries([...new Set(record.data.bookings.map(x=>x.month))].map(month=>[month,record.data.meta.as_of||id.slice(0,10)]));window.VIEWING_SNAPSHOT=id;setupFilters(payload);$('dashboard').classList.remove('hidden');$('status').textContent='Carga del '+new Date(id).toLocaleString('es-ES')+' · '+record.bookName;render()};
 $('backup').onclick=()=>exportSnapshots().catch(e=>$('status').textContent=e.message);
-$('chooseRestoreFile').onclick=()=>$('restoreBackup').click();
+$('chooseRestoreFile').onclick=async()=>{
+  /* Con carpeta conectada, el selector se abre directamente en «Dashboards guardados»: Pablo solo elige el archivo. */
+  if(window.BONAVISTA_FOLDER&&typeof window.showOpenFilePicker==='function'){
+    try{
+      const dir=await ensureSubfolder(window.BONAVISTA_FOLDER,SAVED_SUBFOLDER);
+      const [fh]=await window.showOpenFilePicker({startIn:dir,multiple:false,types:[{description:'Copia de dashboard',accept:{'application/json':['.bonavista','.json']}}]});
+      await runRestore(await fh.getFile());
+    }catch(e){if(e.name!=='AbortError')$('restoreBackup').click()}
+    return;
+  }
+  $('restoreBackup').click();
+};
 $('restoreBackup').addEventListener('change',event=>{const file=event.target.files[0];if(file)runRestore(file)});
 async function runRestore(file){
   const st=$('restoreStatus');st.classList.remove('error');st.textContent='';
